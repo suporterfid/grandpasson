@@ -27,7 +27,7 @@ MySQL-backed session — all deployable to shared hosting from a Docker-built zi
 - Broker auth-code exchange between broker and client app (`auth_codes` table), exact redirect-URI match.
 - User provisioning / verified-email auto-link (spec §12).
 - CSRF via `state`, `nonce` for OIDC, PKCE, ID-token validation (spec §3).
-- Audit logging of login success/failure/logout (spec §10 table, §13).
+- Audit logging of login success/failure/logout (spec §8 `audit_events`, §13).
 - Cron cleanup scripts + Docker cron service (spec §15).
 - Dockerized dev stack + Docker build pipeline producing the release zip (spec §18).
 - Minimal CI: build the artifact and run tests.
@@ -72,15 +72,15 @@ v0 is done when **all** of the following hold:
 
 | Milestone | Goal | Tasks |
 |---|---|---|
-| **M0 — Foundation** | Repo scaffolding, Docker dev stack, schema boots | T0, T1, M-runner, T11 |
+| **M0 — Foundation** | Repo scaffolding, Docker dev stack, schema boots | T0, T1, T-runner, T11 |
 | **M1 — Core plumbing** | Router, config, DB connection, MySQL sessions | T-router, T-config, T-db, T2 |
-| **M2 — Providers** | Normalized identity from all three providers | T3, T4, T5 (+ ProviderInterface) |
-| **M3 — Flows** | Login → callback → provisioning → session → client redirect | T6, T7, T-provision, T8 |
+| **M2 — Providers** | Normalized identity from all three providers | T-iface, T3, T4, T5 |
+| **M3 — Flows** | Login → callback → provisioning → session → client redirect | T6, T-provision, T7, T8, T-session-ep |
 | **M4 — Ops & hardening** | Cron cleanup, audit logging, security guards | T9, T10, T-security |
-| **M5 — Ship** | Build pipeline, CI, deploy docs, release zip | T12, T-ci, T-deploydoc |
+| **M5 — Ship** | Build pipeline, CI, deploy docs, release zip | T12, T-tests, T-ci, T-deploydoc |
 
 Recommended order (extends spec §20):
-`T0 → T1 → M-runner → T11 → T-config → T-db → T-router → T2 → (T3 ∥ T4 ∥ T5) → T6 → T7 → T-provision → T8 → T9 → T10 → T-security → T12 → T-ci → T-deploydoc`
+`T0 → T1 → T-runner → T11 → T-config → T-db → T-router → T2 → T-iface → (T3 ∥ T4 ∥ T5) → T6 → T-provision → T7 → T8 → T-session-ep → T9 → T10 → T-security → T12 → T-tests → T-ci → T-deploydoc`
 
 ---
 
@@ -179,8 +179,9 @@ but does not itemize).
   - Files: `app/Http/Controllers/LoginController.php`
   - Dep: T3, T4, T5, T-router
   - Accept: `GET /login` renders provider chooser; `GET /login/{provider}` validates `client_id` +
-    `redirect_uri` (exact match against `oauth_clients`), stores `state`/`nonce`/PKCE + `return_to` in
-    session, and 302s to the provider with correct params.
+    `redirect_uri` (exact match against `oauth_clients`), rejects when `oauth_clients.enabled=0`
+    (and audits), stores `state`/`nonce`/PKCE + `return_to` in session, and 302s to the provider with
+    correct params.
 
 - **T7 — Callback controller**
   - Files: `app/Http/Controllers/CallbackController.php`
@@ -225,8 +226,9 @@ but does not itemize).
   - Files: `app/Support/Csrf.php`, `app/Support/Http.php`, rate-limit helper
   - Dep: T6, T7
   - Accept: `state`/PKCE enforced on every flow; exact redirect-URI matching (no prefix); `return_to`
-    validated against registered URIs; basic per-IP throttle on `/login` and `/callback`; disabled local
-    users are denied even when upstream login succeeds; secrets read only from env outside webroot.
+    validated against registered URIs; disabled `oauth_clients` rejected at login; basic per-IP throttle
+    on `/login` and `/callback`; disabled local users are denied even when upstream login succeeds;
+    secrets read only from env outside webroot.
 
 ### M5 — Ship
 
@@ -247,7 +249,8 @@ but does not itemize).
   - Files: `phpunit.xml`, `tests/**`
   - Dep: grows with each milestone (write alongside, not at the end)
   - Accept: unit tests for provider identity normalization, session handler round-trip, provisioning
-    rules (verified vs unverified link), redirect-URI validation, and cron deletion boundaries.
+    rules (verified vs unverified link), redirect-URI validation, disabled `oauth_clients` rejection,
+    and cron deletion boundaries.
 
 - **T-deploydoc — Deployment guide**
   - Files: `docs/deployment.md`, README pointer
@@ -294,9 +297,9 @@ following v0-critical additions explicit so nothing blocks a real deploy:
 
 ## 7. Suggested first PRs (execution slices)
 
-1. **Foundation PR** — T0, T1, T11, M-runner: `docker compose up` boots with schema; empty front controller responds.
+1. **Foundation PR** — T0, T1, T11, T-runner: `docker compose up` boots with schema; empty front controller responds.
 2. **Plumbing PR** — T-config, T-db, T-router, T2: routed requests + working MySQL sessions.
 3. **Providers PR** — T-iface, T3, T4, T5 with unit tests.
-4. **Flow PR** — T6, T7, T-provision, T8, T-session-ep: full end-to-end login against Google.
+4. **Flow PR** — T6, T-provision, T7, T8, T-session-ep: full end-to-end login against Google.
 5. **Ops PR** — T9, T10, T-security.
-6. **Ship PR** — T12, T-ci, T-tests round-out, T-deploydoc: green CI + release zip.
+6. **Ship PR** — T12, T-tests round-out, T-ci, T-deploydoc: green CI + release zip.
