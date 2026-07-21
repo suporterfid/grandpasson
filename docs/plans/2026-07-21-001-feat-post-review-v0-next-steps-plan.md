@@ -53,7 +53,7 @@ Implementers cannot start Foundation safely while the docs disagree on how a cli
 
 ### Acceptance Examples
 
-- AE1. Covers R1. Given patched docs, when a confidential client receives `?code=…&state=…`, then the docs name `POST /session/exchange` (or equivalent) that consumes the code with `client_id` + `client_secret` and returns the authenticated user claims — not cookie-only `GET /session`.
+- AE1. Covers R1, R7, R8. Given patched docs, when a confidential client receives `?code=…&state=…`, then the docs name `POST /session/exchange` that requires `client_id`, `client_secret`, and exact `redirect_uri` match against the stored auth-code row; consumes the code atomically; returns authenticated user claims — not cookie-only `GET /session`. Public or secretless clients are rejected.
 - AE2. Covers R6. Given a clean checkout after U2–U4, when `docker compose up` completes, then MySQL has the six §8 tables as InnoDB and HTTP `:8080` returns a non-500 response from the front controller.
 
 ### Success Criteria
@@ -94,7 +94,7 @@ Implementers cannot start Foundation safely while the docs disagree on how a cli
 
 These are planner defaults for previously open review decisions (not user session-settled). Override before U1 if undesired.
 
-1. **Trust path:** v0 uses short-lived broker auth codes redeemed via **`POST /session/exchange`** by confidential clients (`client_id` + `client_secret` vs `client_secret_hash`). Host-only `AUTHSESSID`; no parent-domain cookie SSO in v0. `GET /session` remains cookie-authenticated introspection for the broker’s own browser session / same-site demos only.
+1. **Trust path:** v0 uses short-lived broker auth codes redeemed via **`POST /session/exchange`** by confidential clients only (`client_id` + `client_secret` vs `client_secret_hash`; reject `type=public` and missing `client_secret_hash`). Redemption MUST include exact `redirect_uri` match to the issued auth-code record and MUST consume the code in one transactional update (`consumed=0` AND unexpired in the write predicate). Host-only `AUTHSESSID`; no parent-domain cookie SSO in v0. `GET /session` remains cookie-authenticated introspection for the broker’s own browser session / same-site demos only.
 2. **Sessions:** Spec §8 `sessions` table is authoritative for `SessionHandlerInterface`. Spec §7 logical fields (`client_id`, `ip_hash`, `amr`, …) live inside the `data` MEDIUMBLOB (or are derived at write time), not as competing columns. Spec §7 YAML is reframed as logical session metadata, not DDL.
 3. **Providers:** Keep all three provider implementations in v0. **DoD:** Google live E2E required; Microsoft and GitHub must pass unit/contract tests (live creds optional in CI) — affirm and clarify the existing MVP DoD as intentional, not accidental soft-scope.
 4. **Access gate:** Add `ALLOWED_EMAIL_DOMAINS` (comma-separated). Empty list in production refuses auto-create; `APP_ENV=dev` may allow open auto-create for local demos. Auto-link still requires verified email.
@@ -170,7 +170,7 @@ sequenceDiagram
   - Spec §8 `auth_codes`: note hashed-at-rest storage; optional column rename guidance (`code_hash`).
   - Spec §12 / config: `ALLOWED_EMAIL_DOMAINS`; remove `primary_email` from `sync_fields`.
   - Spec §4 / Microsoft: `MS_TENANT_ID` default; verified email required for link.
-  - MVP plan: add `T-exchange` (or fold into T7/T-session-ep); move `T-runner` after `T-db`; fold security checks into T6/T7; document failure matrix; echo client `state`; hash auth codes; disabled client rejection (already partially applied).
+  - MVP plan: add dedicated task **`T-exchange`** (files: `app/Http/Controllers/SessionExchangeController.php`; deps: T7, T-db; acceptance: confidential-only, exact `redirect_uri`, atomic consume, audit failures); place it in M3 after T7; move `T-runner` after `T-db`; fold security checks into T6/T7; document failure matrix; echo client `state`; hash auth codes; disabled client rejection (already partially applied).
 - **Test scenarios:** none — documentation only.
 - **Verification:** A reader can answer “how does the client finish login?” and “what columns does `sessions` have?” from the docs without contradiction.
 
@@ -207,7 +207,7 @@ sequenceDiagram
 - **Requirements:** R6
 - **Dependencies:** U2, U3
 - **Files:** `docker-compose.yml`, `docker/nginx/{Dockerfile,default.conf}`, `docker/php/{Dockerfile,php.ini}`, `docker/mysql/init/*`, `public_html/index.php` (minimal stub), `public_html/.htaccess` or nginx rewrite equivalent, `Makefile` (`up`/`down` targets at minimum)
-- **Approach:** Match spec §18.2 as closely as practical; PHP extensions `pdo_mysql`, `curl`, `openssl`, `json`. Stub front controller returns 200 with plain text or JSON `ok`. Cron service: use an image that actually has `crond`, or document a `busybox`/`ofelia` alternative if stock `php-fpm` lacks it (do not claim crond on an image that does not ship it).
+- **Approach:** Match spec §18.2 as closely as practical for the nginx/php/mysql Foundation slice; PHP extensions `pdo_mysql`, `curl`, `openssl`, `json`. Stub front controller returns 200 with plain text or JSON `ok`. Defer cron-service wiring to the updated MVP plan’s T9 follow-up so Foundation stays limited to one-command web+db boot.
 - **Execution note:** Prefer runtime smoke (`docker compose up` + curl `:8080`) over unit coverage.
 - **Test scenarios:**
   - Happy path: `docker compose up -d` then HTTP GET `http://localhost:8080` returns success.
@@ -237,7 +237,7 @@ sequenceDiagram
 **Deferred (non-blocking)**
 
 - Exact JSON claim shape of `POST /session/exchange` response (id, email, display_name, status minimum — finalize in M3).
-- Whether public clients are supported in v0 at all (default: confidential only).
+- Whether public clients (PKCE-only, no secret) are supported after v0.
 - Retention/purge policy for `audit_events` and `raw_claims_json`.
 - When Option B (full IdP) becomes a supported promise.
 
