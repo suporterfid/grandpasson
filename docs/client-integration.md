@@ -105,6 +105,15 @@ php cron/admin.php client:create-service "Notes Agent" \
   --aud=workspace/abc123
 ```
 
+TaskConnect example (outbound callback + inbound submit):
+
+```bash
+php cron/admin.php client:create-service "TaskConnect" \
+  --scopes=tasks:callback,tasks:write \
+  --aud=workspace/env_abc123
+```
+
+Scopes must be from the broker vocabulary (`openid`, `profile`, `email`, `tenant:read`, `kb:read`, `kb:write`, `publish:read`, `tasks:callback`, `tasks:write`). Audience `workspace/<id>` narrows the token to a notes workspace or TaskConnect environment public id.
 The CLI prints `client_secret` **once**. Store it in the agent's secret store; the broker keeps only a password hash.
 
 Issue a short-lived opaque token:
