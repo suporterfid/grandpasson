@@ -95,14 +95,15 @@ final class AccessTokenRepository
         $now = gmdate('Y-m-d H:i:s');
         $stmt = $this->pdo->prepare(
             'UPDATE access_tokens
-             SET last_used_at = :now
+             SET last_used_at = :touched_at
              WHERE id = :id
                AND revoked_at IS NULL
-               AND expires_at > :now'
+               AND expires_at > :expires_gate'
         );
         $stmt->execute([
-            'now' => $now,
+            'touched_at' => $now,
             'id' => $id,
+            'expires_gate' => $now,
         ]);
 
         return $stmt->rowCount() === 1;
