@@ -40,8 +40,10 @@ Stop with `make down`.
 | `POST` | `/oauth/revoke` | Revoke opaque token |
 | `GET` | `/admin` | Minimal admin UI (requires `ADMIN_API_TOKEN`) |
 | `POST` | `/admin/api` | Admin JSON API (Bearer / `X-Admin-Token`) |
+| `GET` | `/site/{site_id}/login/{provider}` | Reader login for gated sites (R14) |
+| `GET` | `/site/{site_id}/session` | Reader session (isolated cookie) |
 
-Admin (CLI, ships in zip): `php cron/admin.php …` — tenants, groups, service clients, access tokens, PATs.
+Admin (CLI, ships in zip): `php cron/admin.php …` — tenants, groups, service clients, access tokens, PATs, published sites.
 
 ## Deploy
 

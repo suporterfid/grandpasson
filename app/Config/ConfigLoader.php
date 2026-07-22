@@ -10,7 +10,7 @@ final class ConfigLoader
      * @return array{
      *   app_env: string,
      *   broker: array{name: string, base_url: string},
-     *   session: array{cookie_name: string, secure: bool, ttl_minutes: int},
+     *   session: array{cookie_name: string, secure: bool, ttl_minutes: int, reader_cookie_name: string},
      *   db: array{host: string, port: int, name: string, user: string, password: string},
      *   allowed_email_domains: list<string>,
      *   migrate_token: string,
@@ -92,6 +92,7 @@ final class ConfigLoader
                 'cookie_name' => $env['SESSION_COOKIE_NAME'],
                 'secure' => filter_var($env['SESSION_COOKIE_SECURE'], FILTER_VALIDATE_BOOLEAN),
                 'ttl_minutes' => (int) $env['SESSION_TTL_MINUTES'],
+                'reader_cookie_name' => $env['READER_SESSION_COOKIE_NAME'] ?? 'GPSREADER',
             ],
             'db' => [
                 'host' => $env['DB_HOST'],
@@ -146,6 +147,7 @@ final class ConfigLoader
             'SESSION_COOKIE_NAME',
             'SESSION_COOKIE_SECURE',
             'SESSION_TTL_MINUTES',
+            'READER_SESSION_COOKIE_NAME',
             'DB_HOST',
             'DB_PORT',
             'DB_NAME',

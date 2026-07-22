@@ -28,6 +28,19 @@ final class CallbackController
         $providerName = strtolower($params['provider'] ?? '');
         $oauth = $_SESSION['oauth'] ?? null;
 
+        // R14: reader IdP callbacks reuse the same redirect_uri as editor login.
+        if (isset($_SESSION['reader_oauth']) && is_array($_SESSION['reader_oauth'])) {
+            $reader = $_SESSION['reader_oauth'];
+            if (($reader['provider'] ?? '') === $providerName) {
+                (new SiteReaderController())->callback($config, [
+                    'site_id' => (string) ($reader['site_id'] ?? ''),
+                    'provider' => $providerName,
+                ]);
+
+                return;
+            }
+        }
+
         if (!is_array($oauth) || ($oauth['provider'] ?? '') !== $providerName) {
             $this->fail(400, 'invalid_state', 'Login session missing or provider mismatch');
 

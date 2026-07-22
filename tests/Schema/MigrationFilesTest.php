@@ -23,7 +23,7 @@ final class MigrationFilesTest extends TestCase
         $app = $this->sqlBasenames($this->appMigrations);
         $docker = $this->sqlBasenames($this->dockerInit);
 
-        self::assertCount(16, $app);
+        self::assertCount(17, $app);
         self::assertSame(
             [
                 '001_create_users.sql',
@@ -42,6 +42,7 @@ final class MigrationFilesTest extends TestCase
                 '014_alter_access_tokens_for_pats.sql',
                 '015_create_rate_limit_counters.sql',
                 '016_alter_auth_codes_pkce.sql',
+                '017_create_reader_sites_sessions.sql',
             ],
             $app
         );
