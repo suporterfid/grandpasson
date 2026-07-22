@@ -6,8 +6,10 @@ namespace GrandpaSSOn\Http\Controllers;
 
 use GrandpaSSOn\Infrastructure\Audit\AuditLogger;
 use GrandpaSSOn\Infrastructure\Auth\AuthCodeService;
+use GrandpaSSOn\Infrastructure\Auth\SessionClaimsResolver;
 use GrandpaSSOn\Infrastructure\Db\Connection;
 use GrandpaSSOn\Infrastructure\Db\OAuthClientRepository;
+use GrandpaSSOn\Infrastructure\Db\TenantRepository;
 use GrandpaSSOn\Support\Http;
 use GrandpaSSOn\Support\RateLimitGate;
 use PDO;
@@ -83,12 +85,19 @@ final class SessionExchangeController
             return;
         }
 
+        $claims = (new SessionClaimsResolver($pdo, new TenantRepository($pdo)))->resolve([
+            'id' => (string) $row['id'],
+            'primary_email' => (string) $row['primary_email'],
+            'display_name' => (string) $row['display_name'],
+            'status' => (string) $row['status'],
+        ]);
+
         $audit->log('exchange.success', $userId, null, Http::clientIp());
-        Http::json(200, [
+        Http::json(200, array_merge([
             'id' => $row['id'],
             'email' => $row['primary_email'],
             'display_name' => $row['display_name'],
             'status' => $row['status'],
-        ]);
+        ], $claims));
     }
 }
