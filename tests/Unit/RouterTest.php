@@ -115,6 +115,11 @@ final class RouterTest extends TestCase
         $introSrc = (string) file_get_contents(dirname(__DIR__, 2) . '/app/Http/Controllers/OAuthIntrospectController.php');
         $this->assertStringContainsString('RateLimitGate::allowDb', $tokenSrc);
         $this->assertStringContainsString('RateLimitGate::allowDb', $introSrc);
+
+        $loginSrc = (string) file_get_contents(dirname(__DIR__, 2) . '/app/Http/Controllers/LoginController.php');
+        $readerSrc = (string) file_get_contents(dirname(__DIR__, 2) . '/app/Http/Controllers/SiteReaderController.php');
+        $this->assertStringContainsString('RateLimitGate::allowLogin', $loginSrc);
+        $this->assertStringContainsString('RateLimitGate::allowLogin', $readerSrc);
     }
 
     private function wiredRouter(): Router

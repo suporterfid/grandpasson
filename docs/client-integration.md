@@ -118,7 +118,7 @@ curl -sS -X POST https://auth.example.com/oauth/token \
 
 Validate with `POST /oauth/introspect` and revoke with `POST /oauth/revoke` (or `php cron/admin.php token:revoke …`).
 
-`/oauth/token` and `/oauth/introspect` use **DB-backed** per-IP rate limits (shared-hosting friendly; no Redis). Other auth routes keep the file-backed gate.
+`/oauth/token` and `/oauth/introspect` use **DB-backed** per-IP rate limits (shared-hosting friendly; no Redis). Login, IdP callback, and reader-login routes use the same DB counters with a stricter policy: **15 attempts / 5 minutes**, then an **IP lockout of 15 minutes**. Other non-login auth routes keep the file-backed gate.
 
 Optional JWT fast-path (R15/R16): set `JWT_ACCESS_TOKEN_ENABLED=true`. Prefer rotatable RS256 keys via `php cron/admin.php jwt:key-rotate` and publish public keys at `GET /.well-known/jwks.json`. If no RSA keys exist yet, `JWT_HMAC_SECRET` enables HS256. Token responses include a companion `jwt` field; the opaque `access_token` remains the revocation authority via introspect.
 

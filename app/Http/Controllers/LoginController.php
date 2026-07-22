@@ -32,7 +32,8 @@ final class LoginController
     /** @param array<string, mixed> $config @param array<string, string> $params */
     public function start(array $config, array $params = []): void
     {
-        if (!RateLimitGate::allow('login')) {
+        $pdo = Connection::get($config['db']);
+        if (!RateLimitGate::allowLogin($pdo, 'login')) {
             Http::json(429, ['error' => 'rate_limited']);
 
             return;
@@ -58,7 +59,6 @@ final class LoginController
             return;
         }
 
-        $pdo = Connection::get($config['db']);
         $clients = new OAuthClientRepository($pdo);
         $audit = new AuditLogger($pdo);
         $client = $clients->findByClientId($clientId);

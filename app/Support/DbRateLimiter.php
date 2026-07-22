@@ -10,6 +10,7 @@ use PDOException;
 /**
  * DB-backed fixed-window rate limiter (R13 / S9) — no Redis.
  * One row per key; window resets when window_started_at + windowSeconds is past.
+ * Optional lockoutSeconds extends the block after the limit is hit (login abuse brake).
  */
 final class DbRateLimiter
 {
@@ -17,6 +18,7 @@ final class DbRateLimiter
         private readonly PDO $pdo,
         private readonly int $maxAttempts = 60,
         private readonly int $windowSeconds = 60,
+        private readonly int $lockoutSeconds = 0,
     ) {
         if ($this->maxAttempts < 1) {
             throw new \InvalidArgumentException('maxAttempts must be >= 1');
@@ -24,10 +26,13 @@ final class DbRateLimiter
         if ($this->windowSeconds < 1) {
             throw new \InvalidArgumentException('windowSeconds must be >= 1');
         }
+        if ($this->lockoutSeconds < 0) {
+            throw new \InvalidArgumentException('lockoutSeconds must be >= 0');
+        }
     }
 
     /**
-     * Record a hit. Returns true when allowed, false when throttled.
+     * Record a hit. Returns true when allowed, false when throttled / locked out.
      */
     public function attempt(string $key, ?int $now = null): bool
     {
@@ -83,6 +88,26 @@ final class DbRateLimiter
             }
 
             if ($hits >= $this->maxAttempts) {
+                // Escalate lockout once when first tripped (started still within the live window).
+                // Shifts window_started_at forward so remaining block ≈ lockoutSeconds.
+                if ($this->lockoutSeconds > 0 && $started <= $now) {
+                    $desiredStarted = $now - $this->windowSeconds + $this->lockoutSeconds;
+                    if ($desiredStarted > $started) {
+                        $extend = $this->pdo->prepare(
+                            'UPDATE rate_limit_counters
+                             SET window_started_at = :started, updated_at = :updated
+                             WHERE counter_key = :k'
+                        );
+                        $extend->execute([
+                            'started' => $desiredStarted,
+                            'updated' => $updatedAt,
+                            'k' => $hash,
+                        ]);
+                        $this->pdo->commit();
+
+                        return false;
+                    }
+                }
                 $touch = $this->pdo->prepare(
                     'UPDATE rate_limit_counters SET updated_at = :updated WHERE counter_key = :k'
                 );

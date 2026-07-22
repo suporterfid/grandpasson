@@ -61,6 +61,21 @@ final class DbRateLimiterTest extends TestCase
         $this->assertTrue($limiter->attempt('oauth_token|1.2.3.4', $now + 61));
     }
 
+    public function testLockoutExtendsBlockBeyondWindow(): void
+    {
+        // 3 hits / 60s window, then 180s lockout after the limit trips.
+        $limiter = new DbRateLimiter($this->pdo, 3, 60, 180);
+        $now = 1_700_000_000;
+
+        $this->assertTrue($limiter->attempt('login|1.2.3.4', $now));
+        $this->assertTrue($limiter->attempt('login|1.2.3.4', $now + 1));
+        $this->assertTrue($limiter->attempt('login|1.2.3.4', $now + 2));
+        $this->assertFalse($limiter->attempt('login|1.2.3.4', $now + 3)); // trips lockout
+        // Natural window would end at now+60, but lockout keeps blocking until ~now+183
+        $this->assertFalse($limiter->attempt('login|1.2.3.4', $now + 70));
+        $this->assertTrue($limiter->attempt('login|1.2.3.4', $now + 184));
+    }
+
     public function testOauthTokenEndpointReturns429WhenDbLimited(): void
     {
         (new ServiceClientRepository($this->pdo))->create(

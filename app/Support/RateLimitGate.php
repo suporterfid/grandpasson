@@ -39,13 +39,27 @@ final class RateLimitGate
      * DB-backed throttle for oauth token/introspect (R13 / S9).
      * Falls back to file limiter if the DB path fails (fail-open toward availability).
      */
-    public static function allowDb(PDO $pdo, string $route, int $maxAttempts = 60, int $windowSeconds = 60): bool
-    {
+    public static function allowDb(
+        PDO $pdo,
+        string $route,
+        int $maxAttempts = 60,
+        int $windowSeconds = 60,
+        int $lockoutSeconds = 0,
+    ): bool {
         $key = $route . '|' . Http::clientIp();
         try {
-            return (new DbRateLimiter($pdo, $maxAttempts, $windowSeconds))->attempt($key);
+            return (new DbRateLimiter($pdo, $maxAttempts, $windowSeconds, $lockoutSeconds))->attempt($key);
         } catch (\Throwable) {
             return self::forAuthEndpoints()->attempt($key);
         }
+    }
+
+    /**
+     * Login / reader-login / callback throttle (S9): DB counters with IP lockout.
+     * 15 attempts / 5 minutes; after the limit, lock out for 15 minutes.
+     */
+    public static function allowLogin(PDO $pdo, string $route): bool
+    {
+        return self::allowDb($pdo, $route, 15, 300, 900);
     }
 }

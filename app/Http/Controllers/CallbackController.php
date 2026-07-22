@@ -19,7 +19,8 @@ final class CallbackController
     /** @param array<string, mixed> $config @param array<string, string> $params */
     public function handle(array $config, array $params = []): void
     {
-        if (!RateLimitGate::allow('callback')) {
+        $pdo = Connection::get($config['db']);
+        if (!RateLimitGate::allowLogin($pdo, 'callback')) {
             Http::json(429, ['error' => 'rate_limited']);
 
             return;
@@ -60,7 +61,6 @@ final class CallbackController
             return;
         }
 
-        $pdo = Connection::get($config['db']);
         $audit = new AuditLogger($pdo);
 
         try {
