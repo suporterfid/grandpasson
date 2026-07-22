@@ -9,6 +9,7 @@ use GrandpaSSOn\Domain\PublishedSite;
 use GrandpaSSOn\Domain\Tenant;
 use GrandpaSSOn\Infrastructure\Audit\AuditLogger;
 use GrandpaSSOn\Infrastructure\Db\AccessTokenRepository;
+use GrandpaSSOn\Infrastructure\Db\JwtSigningKeyRepository;
 use GrandpaSSOn\Infrastructure\Db\PublishedSiteRepository;
 use GrandpaSSOn\Infrastructure\Db\ServiceClientRepository;
 use GrandpaSSOn\Infrastructure\Db\TenantRepository;
@@ -26,6 +27,7 @@ final class AdminCommandRunner
         private readonly AccessTokenRepository $tokens,
         private readonly AuditLogger $audit,
         private readonly PublishedSiteRepository $sites,
+        private readonly JwtSigningKeyRepository $jwtKeys,
     ) {
     }
 
@@ -38,6 +40,7 @@ final class AdminCommandRunner
             new AccessTokenRepository($pdo),
             new AuditLogger($pdo),
             new PublishedSiteRepository($pdo),
+            new JwtSigningKeyRepository($pdo),
         );
     }
 
@@ -61,6 +64,9 @@ final class AdminCommandRunner
             'pat:revoke' => $this->patRevoke($argv, $flags),
             'site:create' => $this->siteCreate($argv, $flags),
             'site:set-visibility' => $this->siteSetVisibility($argv),
+            'jwt:key-rotate' => $this->jwtKeyRotate($flags),
+            'jwt:key-list' => $this->jwtKeyList(),
+            'jwt:key-retire' => $this->jwtKeyRetire($argv),
             default => throw new \InvalidArgumentException('Unknown verb: ' . $verb),
         };
     }
@@ -342,6 +348,55 @@ final class AdminCommandRunner
         $this->auditMutation('site.set_visibility', $siteId . ':' . $visibility);
 
         return ['ok' => true, 'site_id' => $siteId, 'visibility' => $visibility];
+    }
+
+    /**
+     * @param array<string, string> $flags
+     * @return array<string, mixed>
+     */
+    private function jwtKeyRotate(array $flags): array
+    {
+        $bits = (int) ($flags['bits'] ?? 2048);
+        $key = $this->jwtKeys->rotate($bits);
+        $this->auditMutation('jwt.key.rotate', $key->kid);
+
+        return [
+            'ok' => true,
+            'kid' => $key->kid,
+            'alg' => $key->alg,
+            'status' => $key->status,
+            'created_at' => $key->createdAt,
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function jwtKeyList(): array
+    {
+        $list = [];
+        foreach ($this->jwtKeys->listAll() as $key) {
+            $list[] = [
+                'kid' => $key->kid,
+                'alg' => $key->alg,
+                'status' => $key->status,
+                'created_at' => $key->createdAt,
+                'retired_at' => $key->retiredAt,
+            ];
+        }
+
+        return ['ok' => true, 'keys' => $list, 'count' => count($list)];
+    }
+
+    /** @param list<string> $argv @return array<string, mixed> */
+    private function jwtKeyRetire(array $argv): array
+    {
+        $kid = (string) ($argv[0] ?? '');
+        if ($kid === '') {
+            throw new \InvalidArgumentException('Usage: jwt:key-retire <kid>');
+        }
+        $this->jwtKeys->retire($kid);
+        $this->auditMutation('jwt.key.retire', $kid);
+
+        return ['ok' => true, 'kid' => $kid, 'status' => 'retired'];
     }
 
     /** @return array<string, mixed> */

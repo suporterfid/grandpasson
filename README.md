@@ -30,6 +30,7 @@ Stop with `make down`.
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/` | Health |
+| `GET` | `/.well-known/jwks.json` | Public JWKS for RS256 JWT verification (R16) |
 | `GET` | `/login`, `/login/{provider}` | Browser login |
 | `GET` | `/callback/{provider}` | IdP callback |
 | `POST` | `/logout` | End broker session |

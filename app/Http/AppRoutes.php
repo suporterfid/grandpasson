@@ -7,6 +7,7 @@ namespace GrandpaSSOn\Http;
 use GrandpaSSOn\Http\Controllers\AdminUiController;
 use GrandpaSSOn\Http\Controllers\CallbackController;
 use GrandpaSSOn\Http\Controllers\HealthController;
+use GrandpaSSOn\Http\Controllers\JwksController;
 use GrandpaSSOn\Http\Controllers\LoginController;
 use GrandpaSSOn\Http\Controllers\LogoutController;
 use GrandpaSSOn\Http\Controllers\OAuthIntrospectController;
@@ -29,6 +30,7 @@ final class AppRoutes
     {
         return [
             ['GET', '/', HealthController::class, 'index'],
+            ['GET', '/.well-known/jwks.json', JwksController::class, 'show'],
             ['GET', '/login', LoginController::class, 'chooser'],
             ['GET', '/login/{provider}', LoginController::class, 'start'],
             ['GET', '/callback/{provider}', CallbackController::class, 'handle'],

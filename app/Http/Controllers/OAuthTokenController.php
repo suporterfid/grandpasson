@@ -153,20 +153,20 @@ final class OAuthTokenController
             'expires_in' => $issued['expires_in'],
             'scope' => implode(' ', $requested),
             'aud' => $aud,
-        ] + self::optionalJwt($config, $issued['record']));
+        ] + self::optionalJwt($config, $issued['record'], $pdo));
     }
 
     /**
      * @param array<string, mixed> $config
      * @return array<string, string>
      */
-    private static function optionalJwt(array $config, \GrandpaSSOn\Domain\AccessToken $record): array
+    private static function optionalJwt(array $config, \GrandpaSSOn\Domain\AccessToken $record, \PDO $pdo): array
     {
-        if (!JwtAccessTokenFactory::enabled($config)) {
+        if (!JwtAccessTokenFactory::enabled($config, $pdo)) {
             return [];
         }
 
-        return ['jwt' => JwtAccessTokenFactory::mint($config, $record)];
+        return ['jwt' => JwtAccessTokenFactory::mint($config, $record, $pdo)];
     }
 
     /**
@@ -305,6 +305,6 @@ final class OAuthTokenController
             'expires_in' => $issued['expires_in'],
             'scope' => implode(' ', $scopes),
             'sub' => $userId,
-        ] + self::optionalJwt($config, $issued['record']));
+        ] + self::optionalJwt($config, $issued['record'], $pdo));
     }
 }
