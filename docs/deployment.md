@@ -56,10 +56,15 @@ Set at least:
 | `DB_*` | MySQL credentials from cPanel |
 | `ALLOWED_EMAIL_DOMAINS` | Comma-separated; empty outside `APP_ENV=dev` refuses auto-create |
 | `MIGRATE_TOKEN` | Leave empty unless you intentionally expose HTTP migrate |
+| `ACCESS_TOKEN_TTL_SECONDS` | v1 machine-token TTL (default `900`); clamped to max |
+| `ACCESS_TOKEN_TTL_MAX_SECONDS` | Hard max TTL (default `3600`) |
+| `AUDIT_RETENTION_DAYS` | Days to keep enriched audit rows (default `90`) |
 | Provider `*_CLIENT_ID` / `*_CLIENT_SECRET` / redirect URIs | Must match IdP consoles |
 | `MS_TENANT_ID` | Directory tenant ID (use `common` only when intentional) |
 
 Confirm PHP extensions: `curl`, `openssl`, `json`, `pdo_mysql`.
+
+v1 tenancy / machine-token work is specified in [grandpasson-spec-v1-extension.md](grandpasson-spec-v1-extension.md) (additive to the base spec).
 
 ## 4. Run migrations (first deploy)
 

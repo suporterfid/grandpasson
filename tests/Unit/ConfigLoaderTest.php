@@ -75,6 +75,9 @@ ENV);
         $this->assertSame('g-id', $config['providers']['google']['client_id']);
         $this->assertContains('openid', $config['providers']['google']['scopes']);
         $this->assertContains('read:user', $config['providers']['github']['scopes']);
+        $this->assertSame(900, $config['tokens']['access_ttl_seconds']);
+        $this->assertSame(3600, $config['tokens']['access_ttl_max_seconds']);
+        $this->assertSame(90, $config['audit']['retention_days']);
     }
 
     public function testProcessEnvOverridesFile(): void
@@ -89,6 +92,49 @@ ENV);
         $this->assertSame(['override.test'], $config['allowed_email_domains']);
     }
 
+    public function testV1TokenAndAuditDefaultsAndOverrides(): void
+    {
+        $this->writeEnv($this->minimalEnv() . <<<'ENV'
+
+ACCESS_TOKEN_TTL_SECONDS=600
+ACCESS_TOKEN_TTL_MAX_SECONDS=1800
+AUDIT_RETENTION_DAYS=30
+ENV);
+
+        $config = ConfigLoader::load($this->tmpEnv);
+        $this->assertSame(600, $config['tokens']['access_ttl_seconds']);
+        $this->assertSame(1800, $config['tokens']['access_ttl_max_seconds']);
+        $this->assertSame(30, $config['audit']['retention_days']);
+    }
+
+    public function testAccessTokenTtlIsClampedToMax(): void
+    {
+        $this->writeEnv($this->minimalEnv() . <<<'ENV'
+
+ACCESS_TOKEN_TTL_SECONDS=99999
+ACCESS_TOKEN_TTL_MAX_SECONDS=1800
+ENV);
+
+        $config = ConfigLoader::load($this->tmpEnv);
+        $this->assertSame(1800, $config['tokens']['access_ttl_seconds']);
+        $this->assertSame(1800, $config['tokens']['access_ttl_max_seconds']);
+    }
+
+    public function testInvalidOptionalIntsFallBackToDefaults(): void
+    {
+        $this->writeEnv($this->minimalEnv() . <<<'ENV'
+
+ACCESS_TOKEN_TTL_SECONDS=nope
+ACCESS_TOKEN_TTL_MAX_SECONDS=0
+AUDIT_RETENTION_DAYS=-5
+ENV);
+
+        $config = ConfigLoader::load($this->tmpEnv);
+        $this->assertSame(900, $config['tokens']['access_ttl_seconds']);
+        $this->assertSame(3600, $config['tokens']['access_ttl_max_seconds']);
+        $this->assertSame(90, $config['audit']['retention_days']);
+    }
+
     public function testMissingRequiredFailsFast(): void
     {
         file_put_contents($this->tmpEnv, "APP_ENV=dev\n");
@@ -96,6 +142,15 @@ ENV);
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Missing required env vars');
         ConfigLoader::load($this->tmpEnv);
+    }
+
+    public function testSpecExtensionDocIsPresent(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $this->assertFileExists($root . '/docs/grandpasson-spec-v1-extension.md');
+        $this->assertFileExists(
+            $root . '/docs/plans/2026-07-22-001-feat-v1-p0-tenancy-machine-identity-plan.md'
+        );
     }
 
     private function writeEnv(string $contents): void
@@ -128,6 +183,7 @@ ENV;
             'SESSION_COOKIE_NAME', 'SESSION_COOKIE_SECURE', 'SESSION_TTL_MINUTES',
             'DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD',
             'ALLOWED_EMAIL_DOMAINS', 'MIGRATE_TOKEN',
+            'ACCESS_TOKEN_TTL_SECONDS', 'ACCESS_TOKEN_TTL_MAX_SECONDS', 'AUDIT_RETENTION_DAYS',
             'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_REDIRECT_URI',
             'MS_CLIENT_ID', 'MS_CLIENT_SECRET', 'MS_TENANT_ID', 'MS_REDIRECT_URI',
             'GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET', 'GITHUB_REDIRECT_URI',
