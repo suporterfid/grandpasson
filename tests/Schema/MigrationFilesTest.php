@@ -18,12 +18,12 @@ final class MigrationFilesTest extends TestCase
         $this->dockerInit = $root . '/docker/mysql/init';
     }
 
-    public function testBothTreesContainTenMigrationFiles(): void
+    public function testBothTreesContainElevenMigrationFiles(): void
     {
         $app = $this->sqlBasenames($this->appMigrations);
         $docker = $this->sqlBasenames($this->dockerInit);
 
-        self::assertCount(10, $app);
+        self::assertCount(11, $app);
         self::assertSame(
             [
                 '001_create_users.sql',
@@ -36,6 +36,7 @@ final class MigrationFilesTest extends TestCase
                 '008_create_tenant_members.sql',
                 '009_create_groups.sql',
                 '010_create_group_members.sql',
+                '011_create_audit_log.sql',
             ],
             $app
         );

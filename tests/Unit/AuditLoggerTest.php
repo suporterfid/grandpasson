@@ -6,6 +6,7 @@ namespace GrandpaSSOn\Tests\Unit;
 
 use GrandpaSSOn\Infrastructure\Audit\AuditLogger;
 use GrandpaSSOn\Infrastructure\Db\Connection;
+use InvalidArgumentException;
 use PDO;
 use PHPUnit\Framework\TestCase;
 
@@ -23,6 +24,9 @@ final class AuditLoggerTest extends TestCase
             $root->exec('USE `' . $this->dbName . '`');
             $root->exec((string) file_get_contents(
                 dirname(__DIR__, 2) . '/app/Infrastructure/Db/Migrations/006_create_audit_events.sql'
+            ));
+            $root->exec((string) file_get_contents(
+                dirname(__DIR__, 2) . '/app/Infrastructure/Db/Migrations/011_create_audit_log.sql'
             ));
             $this->pdo = $root;
             Connection::reset();
@@ -56,6 +60,126 @@ final class AuditLoggerTest extends TestCase
         $encoded = json_encode($row, JSON_THROW_ON_ERROR);
         $this->assertStringNotContainsString('203.0.113.10', $encoded);
         $this->assertStringNotContainsString('secret', $encoded);
+    }
+
+    public function testLogDualWritesAuditLogWithInferredSuccess(): void
+    {
+        $logger = new AuditLogger($this->pdo);
+        $logger->log('login.success', 'user-2', 'github', '198.51.100.7');
+
+        $row = $this->pdo->query('SELECT * FROM audit_log LIMIT 1')->fetch(PDO::FETCH_ASSOC);
+        $this->assertNotFalse($row);
+        $this->assertSame('subject', $row['actor_type']);
+        $this->assertSame('user-2', $row['actor_id']);
+        $this->assertSame('login.success', $row['action']);
+        $this->assertSame('github', $row['target']);
+        $this->assertSame(AuditLogger::RESULT_SUCCESS, $row['result']);
+        $this->assertSame(hash('sha256', '198.51.100.7'), $row['ip_hash']);
+        $this->assertStringNotContainsString('198.51.100.7', json_encode($row, JSON_THROW_ON_ERROR));
+    }
+
+    public function testFailedAuthWritesResultFailure(): void
+    {
+        $logger = new AuditLogger($this->pdo);
+        $logger->log('login.failure', null, 'microsoft', '203.0.113.99');
+
+        $row = $this->pdo->query('SELECT * FROM audit_log WHERE action = \'login.failure\'')->fetch(PDO::FETCH_ASSOC);
+        $this->assertNotFalse($row);
+        $this->assertSame(AuditLogger::RESULT_FAILURE, $row['result']);
+        $this->assertSame('system', $row['actor_type']);
+        $this->assertNull($row['actor_id']);
+
+        $events = (int) $this->pdo->query(
+            "SELECT COUNT(*) FROM audit_events WHERE event_type = 'login.failure'"
+        )->fetchColumn();
+        $this->assertSame(1, $events);
+    }
+
+    public function testRecordWritesRichShapeAndRejectsSecretLikeValues(): void
+    {
+        $logger = new AuditLogger($this->pdo);
+        $logger->record(
+            action: 'token.issued',
+            result: AuditLogger::RESULT_SUCCESS,
+            actorType: AuditLogger::ACTOR_SERVICE,
+            actorId: 'svc-notes',
+            target: 'token:abc',
+            clientId: 'notes-api',
+            ip: '192.0.2.10',
+            userAgent: 'NotesBot/1.0',
+        );
+
+        $row = $this->pdo->query('SELECT * FROM audit_log WHERE action = \'token.issued\'')->fetch(PDO::FETCH_ASSOC);
+        $this->assertNotFalse($row);
+        $this->assertSame('service', $row['actor_type']);
+        $this->assertSame('svc-notes', $row['actor_id']);
+        $this->assertSame('notes-api', $row['client_id']);
+        $this->assertSame('NotesBot/1.0', $row['user_agent']);
+        $this->assertSame(hash('sha256', '192.0.2.10'), $row['ip_hash']);
+
+        $encoded = json_encode($row, JSON_THROW_ON_ERROR);
+        $this->assertStringNotContainsString('192.0.2.10', $encoded);
+        $this->assertStringNotContainsString('gpat_live_', $encoded);
+        $this->assertStringNotContainsString('client_secret', $encoded);
+
+        $this->expectException(InvalidArgumentException::class);
+        $logger->record(
+            action: 'token.issued',
+            result: AuditLogger::RESULT_SUCCESS,
+            actorType: AuditLogger::ACTOR_SERVICE,
+            target: 'ref:gpat_live_should_not_be_logged',
+        );
+    }
+
+    public function testRejectsSecretBearingUserAgent(): void
+    {
+        $_SERVER['HTTP_USER_AGENT'] = 'Bearer eyJhbGciOiJIUzI1NiJ9.payload.sig';
+        $logger = new AuditLogger($this->pdo);
+
+        $this->expectException(InvalidArgumentException::class);
+        try {
+            $logger->log('login.failure', null, 'google', '203.0.113.1');
+        } finally {
+            unset($_SERVER['HTTP_USER_AGENT']);
+        }
+    }
+
+    public function testRecordTruncatesLongTargetForLegacyProviderColumn(): void
+    {
+        $longTarget = str_repeat('t', 80);
+        $logger = new AuditLogger($this->pdo);
+        $logger->record(
+            action: 'tenant.member.added',
+            result: AuditLogger::RESULT_SUCCESS,
+            actorType: AuditLogger::ACTOR_ADMIN,
+            actorId: 'admin-1',
+            target: $longTarget,
+        );
+
+        $legacy = $this->pdo->query('SELECT provider FROM audit_events LIMIT 1')->fetch(PDO::FETCH_ASSOC);
+        $rich = $this->pdo->query('SELECT target FROM audit_log LIMIT 1')->fetch(PDO::FETCH_ASSOC);
+        $this->assertNotFalse($legacy);
+        $this->assertNotFalse($rich);
+        $this->assertSame(50, strlen((string) $legacy['provider']));
+        $this->assertSame($longTarget, $rich['target']);
+    }
+
+    public function testRecordIntrospectionFailure(): void
+    {
+        $logger = new AuditLogger($this->pdo);
+        $logger->record(
+            action: 'token.introspect',
+            result: AuditLogger::RESULT_FAILURE,
+            actorType: AuditLogger::ACTOR_SERVICE,
+            actorId: 'client-x',
+            clientId: 'client-x',
+            ip: '203.0.113.50',
+        );
+
+        $row = $this->pdo->query('SELECT result, action FROM audit_log LIMIT 1')->fetch(PDO::FETCH_ASSOC);
+        $this->assertNotFalse($row);
+        $this->assertSame('failure', $row['result']);
+        $this->assertSame('token.introspect', $row['action']);
     }
 
     private function rootPdo(): PDO

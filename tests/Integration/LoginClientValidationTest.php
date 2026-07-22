@@ -106,6 +106,13 @@ final class LoginClientValidationTest extends TestCase
             "SELECT COUNT(*) FROM audit_events WHERE event_type = 'login.disabled_client'"
         )->fetchColumn();
         $this->assertSame(1, $events);
+
+        $log = $this->pdo->query(
+            "SELECT result, action FROM audit_log WHERE action = 'login.disabled_client' LIMIT 1"
+        )->fetch(PDO::FETCH_ASSOC);
+        $this->assertNotFalse($log);
+        $this->assertSame('failure', $log['result']);
+        $this->assertSame('login.disabled_client', $log['action']);
     }
 
     public function testRejectsRedirectUriMismatch(): void
