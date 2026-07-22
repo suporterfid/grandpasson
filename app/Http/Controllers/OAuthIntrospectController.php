@@ -96,7 +96,7 @@ final class OAuthIntrospectController
         Http::json(200, [
             'active' => true,
             'sub' => $record->subjectUserId,
-            'client_id' => $record->clientId,
+            'client_id' => $record->clientId ?? $record->oauthClientId,
             'scope' => $record->scope,
             'aud' => $record->aud,
             'tenant' => $record->tenantId,

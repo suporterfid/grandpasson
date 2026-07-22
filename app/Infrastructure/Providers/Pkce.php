@@ -21,6 +21,28 @@ final class Pkce
         ];
     }
 
+    /**
+     * Verify an RP code_verifier against a stored S256 (or plain) challenge.
+     * Always hashes/compares in constant time where applicable.
+     */
+    public static function verify(string $verifier, string $challenge, string $method = 'S256'): bool
+    {
+        if ($verifier === '' || $challenge === '') {
+            return false;
+        }
+        $method = strtoupper($method);
+        if ($method === 'S256') {
+            $computed = self::base64Url(hash('sha256', $verifier, true));
+
+            return hash_equals($challenge, $computed);
+        }
+        if ($method === 'PLAIN') {
+            return hash_equals($challenge, $verifier);
+        }
+
+        return false;
+    }
+
     private static function base64Url(string $raw): string
     {
         return rtrim(strtr(base64_encode($raw), '+/', '-_'), '=');

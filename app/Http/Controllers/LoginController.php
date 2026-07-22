@@ -49,6 +49,8 @@ final class LoginController
         $redirectUri = (string) ($_GET['redirect_uri'] ?? '');
         $clientState = (string) ($_GET['state'] ?? '');
         $returnTo = (string) ($_GET['return_to'] ?? '');
+        $rpChallenge = trim((string) ($_GET['code_challenge'] ?? ''));
+        $rpChallengeMethod = strtoupper(trim((string) ($_GET['code_challenge_method'] ?? 'S256')));
 
         if ($clientId === '' || $redirectUri === '' || $clientState === '') {
             Http::json(400, ['error' => 'invalid_request', 'message' => 'client_id, redirect_uri, and state are required']);
@@ -78,6 +80,25 @@ final class LoginController
             return;
         }
 
+        // S6 / R11: public clients must use PKCE (S256).
+        if (!$client->isConfidential()) {
+            if ($rpChallenge === '' || $rpChallengeMethod !== 'S256') {
+                Http::json(400, [
+                    'error' => 'invalid_request',
+                    'message' => 'public clients require code_challenge with code_challenge_method=S256',
+                ]);
+
+                return;
+            }
+        } elseif ($rpChallenge !== '' && $rpChallengeMethod !== 'S256') {
+            Http::json(400, [
+                'error' => 'invalid_request',
+                'message' => 'Only S256 code_challenge_method is supported',
+            ]);
+
+            return;
+        }
+
         try {
             $factory = new ProviderFactory($config);
             $provider = $factory->make($providerName);
@@ -100,6 +121,8 @@ final class LoginController
             'redirect_uri' => $redirectUri,
             'client_state' => $clientState,
             'return_to' => $returnTo,
+            'rp_code_challenge' => $rpChallenge !== '' ? $rpChallenge : null,
+            'rp_code_challenge_method' => $rpChallenge !== '' ? $rpChallengeMethod : null,
         ];
         Csrf::token();
 

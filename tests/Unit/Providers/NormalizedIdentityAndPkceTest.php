@@ -25,5 +25,7 @@ final class NormalizedIdentityAndPkceTest extends TestCase
 
         $expected = rtrim(strtr(base64_encode(hash('sha256', $pkce['code_verifier'], true)), '+/', '-_'), '=');
         $this->assertSame($expected, $pkce['code_challenge']);
+        $this->assertTrue(Pkce::verify($pkce['code_verifier'], $pkce['code_challenge'], 'S256'));
+        $this->assertFalse(Pkce::verify('wrong-verifier', $pkce['code_challenge'], 'S256'));
     }
 }

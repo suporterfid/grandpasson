@@ -79,7 +79,13 @@ final class CallbackController
             Csrf::token();
 
             $codes = new AuthCodeService($pdo);
-            $rawCode = $codes->mint($user->id, (string) $oauth['client_id'], (string) $oauth['redirect_uri']);
+            $rawCode = $codes->mint(
+                $user->id,
+                (string) $oauth['client_id'],
+                (string) $oauth['redirect_uri'],
+                isset($oauth['rp_code_challenge']) ? (string) $oauth['rp_code_challenge'] : null,
+                isset($oauth['rp_code_challenge_method']) ? (string) $oauth['rp_code_challenge_method'] : null,
+            );
 
             $clientState = (string) $oauth['client_state'];
             $redirectUri = (string) $oauth['redirect_uri'];
