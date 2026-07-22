@@ -21,10 +21,24 @@ final class Http
         echo json_encode($payload, JSON_THROW_ON_ERROR);
     }
 
-    public static function redirect(string $url, int $status = 302): never
+    public static function redirect(string $url, int $status = 302): void
     {
+        http_response_code($status);
         header('Location: ' . $url, true, $status);
-        exit;
+    }
+
+    /** True when the client primarily wants HTML (browser navigation). */
+    public static function prefersHtml(): bool
+    {
+        $accept = strtolower((string) ($_SERVER['HTTP_ACCEPT'] ?? ''));
+        if ($accept === '') {
+            return false;
+        }
+        if (str_contains($accept, 'application/json') && !str_contains($accept, 'text/html')) {
+            return false;
+        }
+
+        return str_contains($accept, 'text/html');
     }
 
     /**
