@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace GrandpaSSOn\Infrastructure\Admin;
 
+use GrandpaSSOn\Domain\AccessToken;
 use GrandpaSSOn\Domain\Tenant;
 use GrandpaSSOn\Infrastructure\Audit\AuditLogger;
 use GrandpaSSOn\Infrastructure\Db\AccessTokenRepository;
@@ -51,6 +52,9 @@ final class AdminCommandRunner
             'client:rotate-secret' => $this->clientRotateSecret($argv),
             'token:list' => $this->tokenList($flags),
             'token:revoke' => $this->tokenRevoke($argv, $flags),
+            'pat:create' => $this->patCreate($argv, $flags),
+            'pat:list' => $this->patList($flags),
+            'pat:revoke' => $this->patRevoke($argv, $flags),
             default => throw new \InvalidArgumentException('Unknown verb: ' . $verb),
         };
     }
@@ -179,20 +183,129 @@ final class AdminCommandRunner
     {
         $client = isset($flags['client']) ? (string) $flags['client'] : null;
         $subject = isset($flags['subject']) ? (string) $flags['subject'] : null;
-        $rows = $this->tokens->listActive($client, $subject);
+        $kind = isset($flags['kind']) ? (string) $flags['kind'] : null;
+        $rows = $this->tokens->listActive($client, $subject, $kind);
         $list = [];
         foreach ($rows as $t) {
-            $list[] = [
-                'id' => $t->id,
-                'client_id' => $t->clientId,
-                'subject_user_id' => $t->subjectUserId,
-                'scope' => $t->scope,
-                'aud' => $t->aud,
-                'expires_at' => $t->expiresAt,
-            ];
+            $list[] = $this->tokenRow($t);
         }
 
         return ['ok' => true, 'tokens' => $list, 'count' => count($list)];
+    }
+
+    /**
+     * @param list<string> $argv
+     * @param array<string, string> $flags
+     * @return array<string, mixed>
+     */
+    private function patCreate(array $argv, array $flags): array
+    {
+        $subject = (string) ($argv[0] ?? '');
+        if ($subject === '') {
+            throw new \InvalidArgumentException(
+                'Usage: pat:create <subject_user_id> --scopes=… [--label=…] [--aud=…] [--ttl-days=365]'
+            );
+        }
+        $this->assertUserExists($subject);
+        $scopesRaw = (string) ($flags['scopes'] ?? '');
+        $scopes = array_values(array_filter(array_map('trim', explode(',', str_replace(' ', ',', $scopesRaw)))));
+        if ($scopes === []) {
+            throw new \InvalidArgumentException('--scopes is required (e.g. kb:read)');
+        }
+        $ttlDays = (int) ($flags['ttl-days'] ?? 365);
+        if ($ttlDays < 1 || $ttlDays > 3650) {
+            throw new \InvalidArgumentException('--ttl-days must be 1..3650');
+        }
+        $aud = isset($flags['aud']) && $flags['aud'] !== '' ? (string) $flags['aud'] : null;
+        $label = isset($flags['label']) && $flags['label'] !== '' ? (string) $flags['label'] : null;
+        $issued = $this->tokens->issuePat(
+            $subject,
+            implode(' ', $scopes),
+            $aud,
+            $ttlDays * 86400,
+            $label,
+        );
+        $this->auditMutation('pat.create', $issued['record']->id);
+
+        return [
+            'ok' => true,
+            'token_id' => $issued['record']->id,
+            'kind' => AccessToken::KIND_PAT,
+            'subject_user_id' => $subject,
+            'scope' => $issued['record']->scope,
+            'aud' => $issued['record']->aud,
+            'label' => $issued['record']->label,
+            'expires_at' => $issued['record']->expiresAt,
+            'expires_in' => $issued['expires_in'],
+            'token' => $issued['token'],
+        ];
+    }
+
+    /**
+     * @param array<string, string> $flags
+     * @return array<string, mixed>
+     */
+    private function patList(array $flags): array
+    {
+        $subject = isset($flags['subject']) ? (string) $flags['subject'] : null;
+        $rows = $this->tokens->listActive(null, $subject, AccessToken::KIND_PAT);
+        $list = [];
+        foreach ($rows as $t) {
+            $list[] = $this->tokenRow($t);
+        }
+
+        return ['ok' => true, 'tokens' => $list, 'count' => count($list)];
+    }
+
+    /**
+     * @param list<string> $argv
+     * @param array<string, string> $flags
+     * @return array<string, mixed>
+     */
+    private function patRevoke(array $argv, array $flags): array
+    {
+        $tokenId = (string) ($argv[0] ?? '');
+        $subject = (string) ($flags['subject'] ?? '');
+        if ($tokenId === '' && $subject === '') {
+            throw new \InvalidArgumentException('Usage: pat:revoke <token_id> | --subject=ID');
+        }
+        if ($tokenId !== '' && $subject !== '') {
+            throw new \InvalidArgumentException('Usage: pat:revoke <token_id> | --subject=ID');
+        }
+        if ($tokenId !== '') {
+            $existing = $this->tokens->findById($tokenId);
+            if ($existing !== null && !$existing->isPat()) {
+                throw new \InvalidArgumentException('Not a PAT token_id (use token:revoke for access tokens)');
+            }
+            $count = $this->tokens->revokeById($tokenId);
+            $target = 'token_id:' . $tokenId;
+        } else {
+            $pats = $this->tokens->listActive(null, $subject, AccessToken::KIND_PAT);
+            $count = 0;
+            foreach ($pats as $pat) {
+                $count += $this->tokens->revokeById($pat->id);
+            }
+            $target = 'subject:' . $subject;
+        }
+        $this->auditMutation('pat.revoke', $target);
+
+        return ['ok' => true, 'revoked' => $count, 'target' => $target];
+    }
+
+    /** @return array<string, mixed> */
+    private function tokenRow(AccessToken $t): array
+    {
+        return [
+            'id' => $t->id,
+            'kind' => $t->kind,
+            'label' => $t->label,
+            'client_id' => $t->clientId,
+            'subject_user_id' => $t->subjectUserId,
+            'scope' => $t->scope,
+            'aud' => $t->aud,
+            'expires_at' => $t->expiresAt,
+            'last_used_at' => $t->lastUsedAt,
+        ];
     }
 
     /**

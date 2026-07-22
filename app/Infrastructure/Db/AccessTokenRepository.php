@@ -16,7 +16,7 @@ final class AccessTokenRepository
     }
 
     /**
-     * Mint and persist an opaque access token. Returns plaintext once.
+     * Mint and persist an opaque access token for a service client. Returns plaintext once.
      *
      * @return array{token: string, record: AccessToken, expires_in: int}
      */
@@ -28,6 +28,60 @@ final class AccessTokenRepository
         ?string $subjectUserId = null,
         ?string $tenantId = null,
     ): array {
+        return $this->persistNew(
+            kind: AccessToken::KIND_ACCESS,
+            clientId: $clientId,
+            subjectUserId: $subjectUserId,
+            scope: $scope,
+            aud: $aud,
+            tenantId: $tenantId,
+            ttlSeconds: $ttlSeconds,
+            label: null,
+        );
+    }
+
+    /**
+     * Mint a user-issued Personal Access Token (R10). Returns plaintext once.
+     *
+     * @return array{token: string, record: AccessToken, expires_in: int}
+     */
+    public function issuePat(
+        string $subjectUserId,
+        string $scope,
+        ?string $aud,
+        int $ttlSeconds,
+        ?string $label = null,
+        ?string $tenantId = null,
+    ): array {
+        if ($subjectUserId === '') {
+            throw new \InvalidArgumentException('subjectUserId is required for PATs');
+        }
+
+        return $this->persistNew(
+            kind: AccessToken::KIND_PAT,
+            clientId: null,
+            subjectUserId: $subjectUserId,
+            scope: $scope,
+            aud: $aud,
+            tenantId: $tenantId,
+            ttlSeconds: $ttlSeconds,
+            label: $label,
+        );
+    }
+
+    /**
+     * @return array{token: string, record: AccessToken, expires_in: int}
+     */
+    private function persistNew(
+        string $kind,
+        ?string $clientId,
+        ?string $subjectUserId,
+        string $scope,
+        ?string $aud,
+        ?string $tenantId,
+        int $ttlSeconds,
+        ?string $label,
+    ): array {
         if ($ttlSeconds <= 0) {
             throw new \InvalidArgumentException('ttlSeconds must be positive');
         }
@@ -37,16 +91,19 @@ final class AccessTokenRepository
         $now = time();
         $createdAt = gmdate('Y-m-d H:i:s', $now);
         $expiresAt = gmdate('Y-m-d H:i:s', $now + $ttlSeconds);
+        $hash = OpaqueToken::hash($plaintext);
 
         $stmt = $this->pdo->prepare(
             'INSERT INTO access_tokens
-             (id, token_hash, client_id, subject_user_id, scope, aud, tenant_id, expires_at, revoked_at, created_at, last_used_at)
+             (id, token_hash, kind, label, client_id, subject_user_id, scope, aud, tenant_id, expires_at, revoked_at, created_at, last_used_at)
              VALUES
-             (:id, :hash, :client_id, :subject, :scope, :aud, :tenant_id, :expires_at, NULL, :created_at, NULL)'
+             (:id, :hash, :kind, :label, :client_id, :subject, :scope, :aud, :tenant_id, :expires_at, NULL, :created_at, NULL)'
         );
         $stmt->execute([
             'id' => $id,
-            'hash' => OpaqueToken::hash($plaintext),
+            'hash' => $hash,
+            'kind' => $kind,
+            'label' => $label,
             'client_id' => $clientId,
             'subject' => $subjectUserId,
             'scope' => $scope,
@@ -58,7 +115,7 @@ final class AccessTokenRepository
 
         $record = new AccessToken(
             $id,
-            OpaqueToken::hash($plaintext),
+            $hash,
             $clientId,
             $subjectUserId,
             $scope,
@@ -68,6 +125,8 @@ final class AccessTokenRepository
             null,
             $createdAt,
             null,
+            $kind,
+            $label,
         );
 
         return [
@@ -180,8 +239,11 @@ final class AccessTokenRepository
     /**
      * @return list<AccessToken>
      */
-    public function listActive(?string $clientId = null, ?string $subjectUserId = null): array
-    {
+    public function listActive(
+        ?string $clientId = null,
+        ?string $subjectUserId = null,
+        ?string $kind = null,
+    ): array {
         $sql = 'SELECT * FROM access_tokens WHERE revoked_at IS NULL AND expires_at > :now';
         $params = ['now' => gmdate('Y-m-d H:i:s')];
         if ($clientId !== null && $clientId !== '') {
@@ -191,6 +253,10 @@ final class AccessTokenRepository
         if ($subjectUserId !== null && $subjectUserId !== '') {
             $sql .= ' AND subject_user_id = :subject';
             $params['subject'] = $subjectUserId;
+        }
+        if ($kind !== null && $kind !== '') {
+            $sql .= ' AND kind = :kind';
+            $params['kind'] = $kind;
         }
         $sql .= ' ORDER BY created_at DESC';
         $stmt = $this->pdo->prepare($sql);
@@ -219,7 +285,7 @@ final class AccessTokenRepository
         return new AccessToken(
             (string) $row['id'],
             (string) $row['token_hash'],
-            (string) $row['client_id'],
+            $row['client_id'] !== null ? (string) $row['client_id'] : null,
             $row['subject_user_id'] !== null ? (string) $row['subject_user_id'] : null,
             (string) $row['scope'],
             $row['aud'] !== null ? (string) $row['aud'] : null,
@@ -228,6 +294,8 @@ final class AccessTokenRepository
             $row['revoked_at'] !== null ? (string) $row['revoked_at'] : null,
             (string) $row['created_at'],
             $row['last_used_at'] !== null ? (string) $row['last_used_at'] : null,
+            isset($row['kind']) ? (string) $row['kind'] : AccessToken::KIND_ACCESS,
+            isset($row['label']) && $row['label'] !== null ? (string) $row['label'] : null,
         );
     }
 }

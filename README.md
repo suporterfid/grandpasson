@@ -39,7 +39,7 @@ Stop with `make down`.
 | `POST` | `/oauth/introspect` | Validate opaque token |
 | `POST` | `/oauth/revoke` | Revoke opaque token |
 
-Admin (CLI, ships in zip): `php cron/admin.php …` — tenants, groups, service clients, token revoke.
+Admin (CLI, ships in zip): `php cron/admin.php …` — tenants, groups, service clients, access tokens, PATs.
 
 ## Deploy
 
