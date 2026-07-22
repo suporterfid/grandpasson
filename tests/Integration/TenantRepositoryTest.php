@@ -196,8 +196,8 @@ final class TenantRepositoryTest extends TestCase
             $admin->exec('USE `' . $dbName . '`');
             $migrator = new Migrator($admin, dirname(__DIR__, 2) . '/app/Infrastructure/Db/Migrations');
             $applied = $migrator->migrate();
-            $this->assertCount(11, $applied);
-            $this->assertContains('010_create_group_members.sql', $applied);
+            $this->assertCount(13, $applied);
+            $this->assertContains('013_create_access_tokens.sql', $applied);
             $this->assertSame([], $migrator->migrate());
 
             $repo = new TenantRepository($admin);

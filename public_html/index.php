@@ -7,6 +7,7 @@ use GrandpaSSOn\Http\Controllers\CallbackController;
 use GrandpaSSOn\Http\Controllers\HealthController;
 use GrandpaSSOn\Http\Controllers\LoginController;
 use GrandpaSSOn\Http\Controllers\LogoutController;
+use GrandpaSSOn\Http\Controllers\OAuthTokenController;
 use GrandpaSSOn\Http\Controllers\SessionController;
 use GrandpaSSOn\Http\Controllers\SessionExchangeController;
 use GrandpaSSOn\Http\Router;
@@ -40,6 +41,7 @@ $router->get('/callback/{provider}', CallbackController::class, 'handle');
 $router->post('/logout', LogoutController::class, 'handle');
 $router->get('/session', SessionController::class, 'show');
 $router->post('/session/exchange', SessionExchangeController::class, 'exchange');
+$router->post('/oauth/token', OAuthTokenController::class, 'token');
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $uri = $_SERVER['REQUEST_URI'] ?? '/';
