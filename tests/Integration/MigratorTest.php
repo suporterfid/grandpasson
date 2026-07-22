@@ -90,13 +90,13 @@ final class MigratorTest extends TestCase
         $this->assertSame(['001_only.sql'], $after['applied']);
     }
 
-    public function testRealMigrationsCreateSixTablesOnEmptyDatabase(): void
+    public function testRealMigrationsCreateV0AndTenancyTablesOnEmptyDatabase(): void
     {
         $dir = dirname(__DIR__, 2) . '/app/Infrastructure/Db/Migrations';
         $migrator = new Migrator($this->pdo, $dir);
 
         $applied = $migrator->migrate();
-        $this->assertCount(6, $applied);
+        $this->assertCount(10, $applied);
         $this->assertSame([], $migrator->migrate());
 
         $tables = $this->pdo->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN);
@@ -107,6 +107,10 @@ final class MigratorTest extends TestCase
         $this->assertContains('sessions', $tables);
         $this->assertContains('auth_codes', $tables);
         $this->assertContains('audit_events', $tables);
+        $this->assertContains('tenants', $tables);
+        $this->assertContains('tenant_members', $tables);
+        $this->assertContains('groups', $tables);
+        $this->assertContains('group_members', $tables);
         $this->assertContains('schema_migrations', $tables);
     }
 
