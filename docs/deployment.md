@@ -84,6 +84,8 @@ Same scripts as local `make cron` / Docker `cron` profile ([spec §15](grandpass
 |---|---|
 | Every 15 minutes | `php /home/USER/path/cron/cleanup_sessions.php` |
 | Every 5 minutes | `php /home/USER/path/cron/cleanup_auth_codes.php` |
+| Hourly | `php /home/USER/path/cron/cleanup_access_tokens.php` |
+| Daily (e.g. 03:30) | `php /home/USER/path/cron/cleanup_audit_log.php` (uses `AUDIT_RETENTION_DAYS`) |
 
 Prefer CLI cron over HTTP hits.
 
