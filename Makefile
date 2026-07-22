@@ -11,13 +11,13 @@ down:
 	docker compose --profile tools down
 
 migrate:
-	@echo "Migrations auto-applied via docker-entrypoint-initdb.d on first MySQL boot"
+	php cron/migrate.php
 
 check-migrations:
 	@diff -rq app/Infrastructure/Db/Migrations docker/mysql/init
 
 test:
-	docker compose exec php php vendor/bin/phpunit
+	php vendor/bin/phpunit
 
 build:
 	docker compose -f docker-compose.build.yml run --rm build

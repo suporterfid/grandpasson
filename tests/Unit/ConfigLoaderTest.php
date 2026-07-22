@@ -1,0 +1,136 @@
+<?php
+
+declare(strict_types=1);
+
+namespace GrandpaSSOn\Tests\Unit;
+
+use GrandpaSSOn\Config\ConfigLoader;
+use PHPUnit\Framework\TestCase;
+
+final class ConfigLoaderTest extends TestCase
+{
+    private string $tmpEnv;
+
+    /** @var array<string, string|false> */
+    private array $envBackup = [];
+
+    protected function setUp(): void
+    {
+        $this->tmpEnv = sys_get_temp_dir() . '/grandpasson-env-' . uniqid('', true);
+        foreach ($this->processKeys() as $key) {
+            $this->envBackup[$key] = getenv($key);
+            putenv($key);
+            unset($_ENV[$key], $_SERVER[$key]);
+        }
+    }
+
+    protected function tearDown(): void
+    {
+        if (is_file($this->tmpEnv)) {
+            unlink($this->tmpEnv);
+        }
+        foreach ($this->envBackup as $key => $value) {
+            if ($value === false) {
+                putenv($key);
+                unset($_ENV[$key], $_SERVER[$key]);
+            } else {
+                putenv($key . '=' . $value);
+                $_ENV[$key] = $value;
+            }
+        }
+    }
+
+    public function testLoadsTypedConfigFromEnvFile(): void
+    {
+        $this->writeEnv(<<<'ENV'
+APP_ENV=dev
+BROKER_BASE_URL=http://localhost:8080/
+BROKER_NAME=GrandpaSSOn
+SESSION_COOKIE_NAME=AUTHSESSID
+SESSION_COOKIE_SECURE=false
+SESSION_TTL_MINUTES=480
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_NAME=grandpasson
+DB_USER=grandpasson
+DB_PASSWORD=secret
+ALLOWED_EMAIL_DOMAINS=Example.com, Contoso.COM ,
+MIGRATE_TOKEN=tok
+MS_TENANT_ID=tenant-1
+GOOGLE_CLIENT_ID=g-id
+ENV);
+
+        $config = ConfigLoader::load($this->tmpEnv);
+
+        $this->assertSame('dev', $config['app_env']);
+        $this->assertSame('http://localhost:8080', $config['broker']['base_url']);
+        $this->assertSame('AUTHSESSID', $config['session']['cookie_name']);
+        $this->assertFalse($config['session']['secure']);
+        $this->assertSame(480, $config['session']['ttl_minutes']);
+        $this->assertSame('127.0.0.1', $config['db']['host']);
+        $this->assertSame('secret', $config['db']['password']);
+        $this->assertSame(['example.com', 'contoso.com'], $config['allowed_email_domains']);
+        $this->assertSame('tok', $config['migrate_token']);
+        $this->assertSame('tenant-1', $config['providers']['microsoft']['tenant_id']);
+        $this->assertSame('g-id', $config['providers']['google']['client_id']);
+        $this->assertContains('openid', $config['providers']['google']['scopes']);
+        $this->assertContains('read:user', $config['providers']['github']['scopes']);
+    }
+
+    public function testProcessEnvOverridesFile(): void
+    {
+        $this->writeEnv($this->minimalEnv());
+        putenv('DB_HOST=mysql');
+        putenv('ALLOWED_EMAIL_DOMAINS=override.test');
+
+        $config = ConfigLoader::load($this->tmpEnv);
+
+        $this->assertSame('mysql', $config['db']['host']);
+        $this->assertSame(['override.test'], $config['allowed_email_domains']);
+    }
+
+    public function testMissingRequiredFailsFast(): void
+    {
+        file_put_contents($this->tmpEnv, "APP_ENV=dev\n");
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Missing required env vars');
+        ConfigLoader::load($this->tmpEnv);
+    }
+
+    private function writeEnv(string $contents): void
+    {
+        file_put_contents($this->tmpEnv, $contents);
+    }
+
+    private function minimalEnv(): string
+    {
+        return <<<'ENV'
+APP_ENV=dev
+BROKER_BASE_URL=http://localhost:8080
+BROKER_NAME=GrandpaSSOn
+SESSION_COOKIE_NAME=AUTHSESSID
+SESSION_COOKIE_SECURE=false
+SESSION_TTL_MINUTES=480
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_NAME=grandpasson
+DB_USER=grandpasson
+DB_PASSWORD=secret
+ENV;
+    }
+
+    /** @return list<string> */
+    private function processKeys(): array
+    {
+        return [
+            'APP_ENV', 'BROKER_BASE_URL', 'BROKER_NAME',
+            'SESSION_COOKIE_NAME', 'SESSION_COOKIE_SECURE', 'SESSION_TTL_MINUTES',
+            'DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD',
+            'ALLOWED_EMAIL_DOMAINS', 'MIGRATE_TOKEN',
+            'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_REDIRECT_URI',
+            'MS_CLIENT_ID', 'MS_CLIENT_SECRET', 'MS_TENANT_ID', 'MS_REDIRECT_URI',
+            'GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET', 'GITHUB_REDIRECT_URI',
+        ];
+    }
+}

@@ -7,6 +7,8 @@ services:
       - ./public_html:/var/www/html/public_html:ro
       - ./app:/var/www/html/app:ro
       - ./vendor:/var/www/html/vendor:ro
+      - ./cron:/var/www/html/cron:ro
+      - ./.env:/var/www/html/.env:ro
     environment:
       - APP_ENV=dev
       - APACHE_DOCUMENT_ROOT=/var/www/html/public_html
