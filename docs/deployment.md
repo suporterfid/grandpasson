@@ -87,6 +87,16 @@ Same scripts as local `make cron` / Docker `cron` profile ([spec §15](grandpass
 
 Prefer CLI cron over HTTP hits.
 
+Admin mutations (tenants, groups, service clients, token revoke) use:
+
+```bash
+php cron/admin.php --help
+php cron/admin.php tenant:create acme "Acme Corp"
+php cron/admin.php client:create-service "Agent" --scopes=kb:read --aud=workspace/abc
+```
+
+See [client-integration.md](client-integration.md) §5 for machine-token flows.
+
 ## 6. HTTPS and cookies
 
 - Enable AutoSSL (or equivalent) and force HTTPS.
