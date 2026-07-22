@@ -201,9 +201,12 @@ Broker-issued, RP-interpreted. Keep small and explicit.
 | `kb:read` | Read a knowledge base / workspace content | AI agents, MCP, retrieval API |
 | `kb:write` | Write/ingest content | Trusted services only |
 | `publish:read` | Read a gated published site | Reader sessions (P2) |
-| `tasks:callback` | Authenticate a background job callback | TaskConnect service client |
+| `tasks:callback` | Authenticate a background job callback | TaskConnect service client (outbound) |
+| `tasks:write` | Submit / ingest tasks inbound | TaskConnect service client (inbound) |
 
 > Workspace-narrowing is expressed via `audience` (`workspace/<id>`), **not** via new scopes per workspace. Rationale: keeps the scope set bounded (Non-goal N1).
+>
+> TaskConnect treats Environment public ids as `workspace_id` (e.g. `env_…`). Issue tokens with `aud=workspace/<environment_public_id>` (or the client's `default_audience`) so introspection returns both `scope` (including `tasks:write` / `tasks:callback`) and `aud` for dual-mode inbound checks.
 
 ### 6.4 Token format (P0 default)
 
@@ -315,8 +318,9 @@ Then the editor endpoint rejects it (reader scope grants no editor capability).
 - Validates agent/service tokens via `POST /oauth/introspect`; enforces `aud` = the workspace being accessed.
 
 ### 10.2 TaskConnect (service client)
-- Registered as a **service client** with scope `tasks:callback` (and `kb:write` only if it must ingest).
-- Obtains a client-credentials token (§6.1) and presents it on its at-least-once HTTP callbacks, replacing any static shared secret. Because delivery is at-least-once, receivers must treat the token as an identity, not a nonce (idempotency is the receiver's job).
+- Registered as a **service client** with scopes `tasks:callback` (outbound callbacks) and/or `tasks:write` (inbound task submission). Add `kb:write` only if it must ingest knowledge content.
+- Obtains a client-credentials token (§6.1) and presents it on its at-least-once HTTP callbacks / inbound API, replacing any static shared secret. Because delivery is at-least-once, receivers must treat the token as an identity, not a nonce (idempotency is the receiver's job).
+- Set `aud` / `--aud=workspace/<environment_public_id>` so introspection returns the workspace/environment public id TaskConnect uses as `workspace_id` (e.g. `env_…`).
 - GrandpaSSOn's own token-GC and audit-retention can be scheduled *as* TaskConnect jobs (or the existing cron) — GrandpaSSOn exposes a protected maintenance endpoint or CLI entrypoint for this.
 
 ### 10.3 AI agents / MCP server

@@ -6,6 +6,7 @@ namespace GrandpaSSOn\Infrastructure\Admin;
 
 use GrandpaSSOn\Domain\AccessToken;
 use GrandpaSSOn\Domain\PublishedSite;
+use GrandpaSSOn\Domain\ScopeVocabulary;
 use GrandpaSSOn\Domain\Tenant;
 use GrandpaSSOn\Infrastructure\Audit\AuditLogger;
 use GrandpaSSOn\Infrastructure\Db\AccessTokenRepository;
@@ -192,6 +193,13 @@ final class AdminCommandRunner
         if ($scopes === []) {
             throw new \InvalidArgumentException('--scopes is required');
         }
+        $unknown = ScopeVocabulary::unknown($scopes);
+        if ($unknown !== []) {
+            throw new \InvalidArgumentException(
+                'Unknown scope(s): ' . implode(', ', $unknown)
+                . '. Known: ' . implode(', ', ScopeVocabulary::all())
+            );
+        }
         $aud = isset($flags['aud']) && $flags['aud'] !== '' ? (string) $flags['aud'] : null;
         $clientId = (string) ($flags['client-id'] ?? ('svc_' . bin2hex(random_bytes(6))));
         $secret = rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=');
@@ -257,6 +265,13 @@ final class AdminCommandRunner
         $scopes = array_values(array_filter(array_map('trim', explode(',', str_replace(' ', ',', $scopesRaw)))));
         if ($scopes === []) {
             throw new \InvalidArgumentException('--scopes is required (e.g. kb:read)');
+        }
+        $unknown = ScopeVocabulary::unknown($scopes);
+        if ($unknown !== []) {
+            throw new \InvalidArgumentException(
+                'Unknown scope(s): ' . implode(', ', $unknown)
+                . '. Known: ' . implode(', ', ScopeVocabulary::all())
+            );
         }
         $ttlDays = (int) ($flags['ttl-days'] ?? 365);
         if ($ttlDays < 1 || $ttlDays > 3650) {

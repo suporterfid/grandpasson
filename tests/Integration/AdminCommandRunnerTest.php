@@ -125,6 +125,25 @@ final class AdminCommandRunnerTest extends TestCase
         $this->assertArrayHasKey('access_token', $again);
     }
 
+    public function testCreateServiceAcceptsTasksWriteAndRejectsUnknownScope(): void
+    {
+        $created = $this->admin->run('client:create-service', ['TaskConnect'], [
+            'scopes' => 'tasks:callback,tasks:write',
+            'aud' => 'workspace/env_abc123',
+            'client-id' => 'svc-tc',
+        ]);
+        $this->assertTrue($created['ok']);
+        $this->assertSame(['tasks:callback', 'tasks:write'], $created['scopes']);
+        $this->assertSame('workspace/env_abc123', $created['aud']);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Unknown scope');
+        $this->admin->run('client:create-service', ['Bad'], [
+            'scopes' => 'invented:scope',
+            'client-id' => 'svc-bad',
+        ]);
+    }
+
     public function testTokenRevokeByClient(): void
     {
         $created = $this->admin->run('client:create-service', ['Revoker'], [

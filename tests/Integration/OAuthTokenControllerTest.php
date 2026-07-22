@@ -99,6 +99,30 @@ final class OAuthTokenControllerTest extends TestCase
         $this->assertStringNotContainsString((string) $payload['access_token'], (string) json_encode($row));
     }
 
+    public function testIssuesTasksWriteWithEnvironmentAudience(): void
+    {
+        (new ServiceClientRepository($this->pdo))->create(
+            'svc-taskconnect',
+            'TaskConnect',
+            'tc-secret',
+            ['tasks:callback', 'tasks:write'],
+            'workspace/env_abc123',
+            true,
+        );
+
+        $payload = $this->postToken([
+            'grant_type' => 'client_credentials',
+            'client_id' => 'svc-taskconnect',
+            'client_secret' => 'tc-secret',
+            'scope' => 'tasks:write',
+        ]);
+
+        $this->assertSame(200, http_response_code());
+        $this->assertSame('tasks:write', $payload['scope']);
+        $this->assertSame('workspace/env_abc123', $payload['aud']);
+        $this->assertTrue(OpaqueToken::hasExpectedShape((string) $payload['access_token']));
+    }
+
     public function testRejectsDisallowedScopeWithoutIssuing(): void
     {
         $payload = $this->postToken([
