@@ -7,6 +7,7 @@ namespace GrandpaSSOn\Http\Controllers;
 use GrandpaSSOn\Infrastructure\Audit\AuditLogger;
 use GrandpaSSOn\Infrastructure\Auth\AuthCodeService;
 use GrandpaSSOn\Infrastructure\Auth\ClientSecretHasher;
+use GrandpaSSOn\Infrastructure\Auth\JwtAccessTokenFactory;
 use GrandpaSSOn\Infrastructure\Auth\ServiceClientAuthenticator;
 use GrandpaSSOn\Infrastructure\Db\AccessTokenRepository;
 use GrandpaSSOn\Infrastructure\Db\Connection;
@@ -152,7 +153,20 @@ final class OAuthTokenController
             'expires_in' => $issued['expires_in'],
             'scope' => implode(' ', $requested),
             'aud' => $aud,
-        ]);
+        ] + self::optionalJwt($config, $issued['record']));
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     * @return array<string, string>
+     */
+    private static function optionalJwt(array $config, \GrandpaSSOn\Domain\AccessToken $record): array
+    {
+        if (!JwtAccessTokenFactory::enabled($config)) {
+            return [];
+        }
+
+        return ['jwt' => JwtAccessTokenFactory::mint($config, $record)];
     }
 
     /**
@@ -291,6 +305,6 @@ final class OAuthTokenController
             'expires_in' => $issued['expires_in'],
             'scope' => implode(' ', $scopes),
             'sub' => $userId,
-        ]);
+        ] + self::optionalJwt($config, $issued['record']));
     }
 }
