@@ -2,7 +2,7 @@
 
 This page is the **P0 Definition of Done** checklist for GrandpaSSOn v1 machine identity (see [spec extension §11](grandpasson-spec-v1-extension.md#11-deployment-migrations--stop-line) and [plan](plans/2026-07-22-001-feat-v1-p0-tenancy-machine-identity-plan.md)).
 
-Do **not** start P1 (admin UI) or P2 (JWKS / RS256) until this list is reviewed and accepted.
+**Status:** P0 implementation units U1–U11 are shipped on `main`. Do **not** start P1 (admin UI / PATs) or P2 (JWKS / RS256) until a human review accepts this checklist.
 
 ## Completed (shipped)
 
@@ -22,6 +22,7 @@ Do **not** start P1 (admin UI) or P2 (JWKS / RS256) until this list is reviewed 
 | S1 release scan includes `app/` | `scripts/build-release.sh`; `ReleaseArtifactGateTest` |
 | Migration parity (`app` ↔ `docker/mysql/init`) | `make check-migrations` |
 | Automated regression suite | `make test` (PHPUnit) |
+| U11 regression gate | PR wiring + `ReleaseArtifactGateTest` |
 
 ## Explicitly out of P0
 
