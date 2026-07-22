@@ -176,6 +176,7 @@ Existing behavior unchanged; response gains claims. **Additive only.**
 ```
 
 - `tenant` = the active/default tenant for this subject. If the subject belongs to none, `tenant` is `null` and `tenants` is `[]` (RP decides what to do).
+- **Active selection (R2):** optional exchange body field `tenant` (id or slug) when the subject is a member; else sticky preference (`user_active_tenant` / `POST /me/active-tenant`); else highest role (`owner` > `admin` > `member`), then lowest slug.
 - Group slugs are **tenant-scoped**; the RP interprets them.
 
 **Acceptance criteria:**

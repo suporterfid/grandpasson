@@ -100,6 +100,8 @@ final class RouterTest extends TestCase
         $this->assertContains('GET /me/pats', $paths);
         $this->assertContains('POST /me/pats', $paths);
         $this->assertContains('POST /me/pats/{id}/revoke', $paths);
+        $this->assertContains('GET /me/active-tenant', $paths);
+        $this->assertContains('POST /me/active-tenant', $paths);
     }
 
     public function testOauthControllersApplyRateLimitGate(): void

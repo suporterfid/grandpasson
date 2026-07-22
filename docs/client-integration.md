@@ -73,6 +73,8 @@ JSON response (v0 fields plus v1 tenancy when configured):
 
 Create your own app session from that payload. Public / secretless clients are rejected at `/session/exchange` — use the authorization_code + PKCE grant on `/oauth/token` instead (below). Treat unknown keys as ignorable. See the v1 extension spec §6.2 for claim authority. When the user has no tenant membership, `tenant` is `null` and `tenants` / `groups` are empty arrays.
 
+**Active tenant (R2):** optional `tenant` (id or slug) on the exchange body selects the active membership when the user belongs to it and is stored as a sticky preference. Without a hint, the broker uses sticky preference if still valid, otherwise the highest role (`owner` > `admin` > `member`), then lowest slug. Subjects can also `GET/POST /me/active-tenant` with the editor session cookie.
+
 ### Public clients (authorization_code + PKCE)
 
 Public RPs (`--type=public` when seeding) must send PKCE on login and redeem the broker code at `POST /oauth/token`:
