@@ -31,6 +31,8 @@ final class AuditLogger
     /** @var list<string> */
     private const RESULTS = [self::RESULT_SUCCESS, self::RESULT_FAILURE];
 
+    private const LEGACY_PROVIDER_MAX = 50;
+
     public function __construct(private readonly PDO $pdo)
     {
     }
@@ -40,32 +42,26 @@ final class AuditLogger
      */
     public function log(string $eventType, ?string $userId = null, ?string $provider = null, ?string $ip = null): void
     {
-        $this->assertNoSecrets($eventType, $userId, $provider);
+        $userAgent = $this->normalizeUserAgent($this->currentUserAgent());
+        $this->assertNoSecrets($eventType, $userId, $provider, $userAgent);
 
         $ipHash = $this->hashIp($ip);
         $now = gmdate('Y-m-d H:i:s');
+        $result = $this->inferResult($eventType);
+        $actorType = $userId !== null && $userId !== '' ? self::ACTOR_SUBJECT : self::ACTOR_SYSTEM;
 
-        $stmt = $this->pdo->prepare(
-            'INSERT INTO audit_events (user_id, event_type, provider, ip_hash, created_at)
-             VALUES (:user_id, :event_type, :provider, :ip_hash, :created_at)'
-        );
-        $stmt->execute([
-            'user_id' => $userId,
-            'event_type' => $eventType,
-            'provider' => $provider,
-            'ip_hash' => $ipHash,
-            'created_at' => $now,
-        ]);
-
-        $this->insertAuditLog(
-            actorType: $userId !== null && $userId !== '' ? self::ACTOR_SUBJECT : self::ACTOR_SYSTEM,
+        $this->dualWrite(
+            eventType: $eventType,
+            legacyUserId: $userId,
+            legacyProvider: $provider,
+            actorType: $actorType,
             actorId: $userId,
             action: $eventType,
             target: $provider,
             clientId: null,
             ipHash: $ipHash,
-            userAgent: $this->currentUserAgent(),
-            result: $this->inferResult($eventType),
+            userAgent: $userAgent,
+            result: $result,
             createdAt: $now,
         );
     }
@@ -93,13 +89,18 @@ final class AuditLogger
         if ($action === '') {
             throw new \InvalidArgumentException('action is required');
         }
-        $this->assertNoSecrets($action, $actorId, $target, $clientId, $userAgent);
+
+        $ua = $this->normalizeUserAgent($userAgent ?? $this->currentUserAgent());
+        $this->assertNoSecrets($action, $actorId, $target, $clientId, $ua);
 
         $ipHash = $this->hashIp($ip);
         $now = gmdate('Y-m-d H:i:s');
-        $ua = $this->normalizeUserAgent($userAgent ?? $this->currentUserAgent());
+        $legacyUserId = $actorType === self::ACTOR_SUBJECT ? $actorId : null;
 
-        $this->insertAuditLog(
+        $this->dualWrite(
+            eventType: $action,
+            legacyUserId: $legacyUserId,
+            legacyProvider: $target,
             actorType: $actorType,
             actorId: $actorId,
             action: $action,
@@ -110,23 +111,12 @@ final class AuditLogger
             result: $result,
             createdAt: $now,
         );
-
-        // Keep v0 consumers working: map actor_id → user_id when subject.
-        $legacyUserId = $actorType === self::ACTOR_SUBJECT ? $actorId : null;
-        $stmt = $this->pdo->prepare(
-            'INSERT INTO audit_events (user_id, event_type, provider, ip_hash, created_at)
-             VALUES (:user_id, :event_type, :provider, :ip_hash, :created_at)'
-        );
-        $stmt->execute([
-            'user_id' => $legacyUserId,
-            'event_type' => $action,
-            'provider' => $target,
-            'ip_hash' => $ipHash,
-            'created_at' => $now,
-        ]);
     }
 
-    private function insertAuditLog(
+    private function dualWrite(
+        string $eventType,
+        ?string $legacyUserId,
+        ?string $legacyProvider,
         string $actorType,
         ?string $actorId,
         string $action,
@@ -137,23 +127,52 @@ final class AuditLogger
         string $result,
         string $createdAt,
     ): void {
-        $stmt = $this->pdo->prepare(
-            'INSERT INTO audit_log
-             (actor_type, actor_id, action, target, client_id, ip_hash, user_agent, result, created_at)
-             VALUES
-             (:actor_type, :actor_id, :action, :target, :client_id, :ip_hash, :user_agent, :result, :created_at)'
-        );
-        $stmt->execute([
-            'actor_type' => $actorType,
-            'actor_id' => $actorId,
-            'action' => $action,
-            'target' => $target,
-            'client_id' => $clientId,
-            'ip_hash' => $ipHash,
-            'user_agent' => $this->normalizeUserAgent($userAgent),
-            'result' => $result,
-            'created_at' => $createdAt,
-        ]);
+        $startedTx = false;
+        if (!$this->pdo->inTransaction()) {
+            $this->pdo->beginTransaction();
+            $startedTx = true;
+        }
+
+        try {
+            $legacy = $this->pdo->prepare(
+                'INSERT INTO audit_events (user_id, event_type, provider, ip_hash, created_at)
+                 VALUES (:user_id, :event_type, :provider, :ip_hash, :created_at)'
+            );
+            $legacy->execute([
+                'user_id' => $legacyUserId,
+                'event_type' => $eventType,
+                'provider' => $this->truncate($legacyProvider, self::LEGACY_PROVIDER_MAX),
+                'ip_hash' => $ipHash,
+                'created_at' => $createdAt,
+            ]);
+
+            $rich = $this->pdo->prepare(
+                'INSERT INTO audit_log
+                 (actor_type, actor_id, action, target, client_id, ip_hash, user_agent, result, created_at)
+                 VALUES
+                 (:actor_type, :actor_id, :action, :target, :client_id, :ip_hash, :user_agent, :result, :created_at)'
+            );
+            $rich->execute([
+                'actor_type' => $actorType,
+                'actor_id' => $actorId,
+                'action' => $action,
+                'target' => $target,
+                'client_id' => $clientId,
+                'ip_hash' => $ipHash,
+                'user_agent' => $userAgent,
+                'result' => $result,
+                'created_at' => $createdAt,
+            ]);
+
+            if ($startedTx) {
+                $this->pdo->commit();
+            }
+        } catch (\Throwable $e) {
+            if ($startedTx && $this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $e;
+        }
     }
 
     private function inferResult(string $eventType): string
@@ -200,6 +219,18 @@ final class AuditLogger
         return $userAgent;
     }
 
+    private function truncate(?string $value, int $max): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+        if (strlen($value) <= $max) {
+            return $value;
+        }
+
+        return substr($value, 0, $max);
+    }
+
     private function assertNoSecrets(?string ...$values): void
     {
         foreach ($values as $value) {
@@ -208,9 +239,9 @@ final class AuditLogger
             }
             $lower = strtolower($value);
             if (
-                str_starts_with($lower, 'gpat_')
+                str_contains($lower, 'gpat_')
                 || str_contains($lower, 'bearer ')
-                || preg_match('/\b(client_secret|access_token|refresh_token|password)\b/', $lower) === 1
+                || preg_match('/\b(client_secret|access_token|refresh_token)\b/', $lower) === 1
             ) {
                 throw new \InvalidArgumentException('Refusing to store secret-like value in audit log');
             }

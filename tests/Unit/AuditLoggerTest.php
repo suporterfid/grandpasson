@@ -127,8 +127,41 @@ final class AuditLoggerTest extends TestCase
             action: 'token.issued',
             result: AuditLogger::RESULT_SUCCESS,
             actorType: AuditLogger::ACTOR_SERVICE,
-            target: 'gpat_live_should_not_be_logged',
+            target: 'ref:gpat_live_should_not_be_logged',
         );
+    }
+
+    public function testRejectsSecretBearingUserAgent(): void
+    {
+        $_SERVER['HTTP_USER_AGENT'] = 'Bearer eyJhbGciOiJIUzI1NiJ9.payload.sig';
+        $logger = new AuditLogger($this->pdo);
+
+        $this->expectException(InvalidArgumentException::class);
+        try {
+            $logger->log('login.failure', null, 'google', '203.0.113.1');
+        } finally {
+            unset($_SERVER['HTTP_USER_AGENT']);
+        }
+    }
+
+    public function testRecordTruncatesLongTargetForLegacyProviderColumn(): void
+    {
+        $longTarget = str_repeat('t', 80);
+        $logger = new AuditLogger($this->pdo);
+        $logger->record(
+            action: 'tenant.member.added',
+            result: AuditLogger::RESULT_SUCCESS,
+            actorType: AuditLogger::ACTOR_ADMIN,
+            actorId: 'admin-1',
+            target: $longTarget,
+        );
+
+        $legacy = $this->pdo->query('SELECT provider FROM audit_events LIMIT 1')->fetch(PDO::FETCH_ASSOC);
+        $rich = $this->pdo->query('SELECT target FROM audit_log LIMIT 1')->fetch(PDO::FETCH_ASSOC);
+        $this->assertNotFalse($legacy);
+        $this->assertNotFalse($rich);
+        $this->assertSame(50, strlen((string) $legacy['provider']));
+        $this->assertSame($longTarget, $rich['target']);
     }
 
     public function testRecordIntrospectionFailure(): void
