@@ -34,8 +34,10 @@ App developers: **[docs/client-integration.md](docs/client-integration.md)** (se
 |---|---|
 | [docs/deployment.md](docs/deployment.md) | Shared-hosting deploy checklist |
 | [docs/client-integration.md](docs/client-integration.md) | Relying-party login + exchange |
-| [docs/grandpasson-spec.md](docs/grandpasson-spec.md) | Product/protocol authority |
+| [docs/grandpasson-spec.md](docs/grandpasson-spec.md) | Product/protocol authority (v0) |
+| [docs/grandpasson-spec-v1-extension.md](docs/grandpasson-spec-v1-extension.md) | v1 additive: tenancy claims · machine identity · gated publishing |
 | [docs/grandpasson-v0-mvp-plan.md](docs/grandpasson-v0-mvp-plan.md) | v0 task list |
+| [docs/plans/2026-07-22-001-feat-v1-p0-tenancy-machine-identity-plan.md](docs/plans/2026-07-22-001-feat-v1-p0-tenancy-machine-identity-plan.md) | v1 P0 implementation plan |
 | [docs/plans/2026-07-21-001-feat-post-review-v0-next-steps-plan.md](docs/plans/2026-07-21-001-feat-post-review-v0-next-steps-plan.md) | Post-review sequencing / exchange |
 
 ## License

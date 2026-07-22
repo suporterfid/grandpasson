@@ -14,6 +14,8 @@ final class ConfigLoader
      *   db: array{host: string, port: int, name: string, user: string, password: string},
      *   allowed_email_domains: list<string>,
      *   migrate_token: string,
+     *   tokens: array{access_ttl_seconds: int, access_ttl_max_seconds: int},
+     *   audit: array{retention_days: int},
      *   providers: array<string, array{client_id: string, client_secret: string, redirect_uri: string, scopes: list<string>, tenant_id?: string}>
      * }
      */
@@ -73,6 +75,12 @@ final class ConfigLoader
             static fn (string $d): bool => $d !== ''
         ));
 
+        $tokenTtlMax = self::positiveInt($env['ACCESS_TOKEN_TTL_MAX_SECONDS'] ?? '', 3600);
+        $tokenTtl = self::positiveInt($env['ACCESS_TOKEN_TTL_SECONDS'] ?? '', 900);
+        if ($tokenTtl > $tokenTtlMax) {
+            $tokenTtl = $tokenTtlMax;
+        }
+
         return [
             'app_env' => $env['APP_ENV'],
             'broker' => [
@@ -93,6 +101,13 @@ final class ConfigLoader
             ],
             'allowed_email_domains' => $domains,
             'migrate_token' => $env['MIGRATE_TOKEN'] ?? '',
+            'tokens' => [
+                'access_ttl_seconds' => $tokenTtl,
+                'access_ttl_max_seconds' => $tokenTtlMax,
+            ],
+            'audit' => [
+                'retention_days' => self::positiveInt($env['AUDIT_RETENTION_DAYS'] ?? '', 90),
+            ],
             'providers' => [
                 'google' => [
                     'client_id' => $env['GOOGLE_CLIENT_ID'] ?? '',
@@ -136,6 +151,9 @@ final class ConfigLoader
             'DB_PASSWORD',
             'ALLOWED_EMAIL_DOMAINS',
             'MIGRATE_TOKEN',
+            'ACCESS_TOKEN_TTL_SECONDS',
+            'ACCESS_TOKEN_TTL_MAX_SECONDS',
+            'AUDIT_RETENTION_DAYS',
             'GOOGLE_CLIENT_ID',
             'GOOGLE_CLIENT_SECRET',
             'GOOGLE_REDIRECT_URI',
@@ -147,6 +165,16 @@ final class ConfigLoader
             'GITHUB_CLIENT_SECRET',
             'GITHUB_REDIRECT_URI',
         ];
+    }
+
+    private static function positiveInt(string $raw, int $default): int
+    {
+        if ($raw === '' || !ctype_digit($raw)) {
+            return $default;
+        }
+        $value = (int) $raw;
+
+        return $value >= 1 ? $value : $default;
     }
 
     /**
