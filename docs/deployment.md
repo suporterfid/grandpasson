@@ -89,7 +89,17 @@ Prefer CLI cron over HTTP hits.
 
 ## 7. Register apps and IdPs
 
-1. Insert each relying party into `oauth_clients` with **exact** `redirect_uris` (JSON array), `type=confidential`, and a `password_hash()` of the client secret.
+1. Seed each relying party (exact redirect URI, confidential secret):
+
+   ```bash
+   php cron/seed_oauth_client.php \
+     --client-id=my-app \
+     --name="My App" \
+     --redirect-uri=https://app.example.com/callback \
+     --secret='long-random-secret'
+   ```
+
+   See [client-integration.md](client-integration.md) for the login + exchange contract.
 2. In Google Cloud, Microsoft Entra, and GitHub OAuth Apps, set redirect URIs to:
 
    - `https://auth.example.com/callback/google`

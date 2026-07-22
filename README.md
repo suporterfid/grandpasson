@@ -26,11 +26,14 @@ Stop with `make down`.
 
 See **[docs/deployment.md](docs/deployment.md)** for shared-hosting steps (migrations, cPanel cron, HTTPS, IdP redirect URIs).
 
+App developers: **[docs/client-integration.md](docs/client-integration.md)** (seed client, login redirect, `POST /session/exchange`).
+
 ## Docs
 
 | Doc | Purpose |
 |---|---|
 | [docs/deployment.md](docs/deployment.md) | Shared-hosting deploy checklist |
+| [docs/client-integration.md](docs/client-integration.md) | Relying-party login + exchange |
 | [docs/grandpasson-spec.md](docs/grandpasson-spec.md) | Product/protocol authority |
 | [docs/grandpasson-v0-mvp-plan.md](docs/grandpasson-v0-mvp-plan.md) | v0 task list |
 | [docs/plans/2026-07-21-001-feat-post-review-v0-next-steps-plan.md](docs/plans/2026-07-21-001-feat-post-review-v0-next-steps-plan.md) | Post-review sequencing / exchange |
