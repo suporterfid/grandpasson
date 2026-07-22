@@ -163,11 +163,16 @@ Then the response is 401 invalid_client, the attempt is audit-logged, and the co
 
 Existing behavior unchanged; response gains claims. **Additive only.**
 
-**Response (additions shown):**
+v0 top-level fields (`id`, `email`, `display_name`, `status`) **remain flat** — do **not** nest them under a `session` wrapper (base spec / backward compatibility wins). Additive v1 keys sit beside them.
+
+**Response example (flat):**
 ```json
 {
-  "session": { "...": "existing v0 fields unchanged" },
-  "subject": { "id": "sub_...", "email": "...", "name": "...", "idp": "google" },
+  "id": "sub_...",
+  "email": "user@example.com",
+  "display_name": "Example User",
+  "status": "active",
+  "subject": { "id": "sub_...", "email": "user@example.com", "name": "Example User", "idp": "google" },
   "tenant":  { "id": "ten_...", "slug": "acme", "role": "admin" },
   "tenants": [ { "id": "ten_...", "slug": "acme", "role": "admin" } ],
   "groups":  [ "editors", "viewers" ],
