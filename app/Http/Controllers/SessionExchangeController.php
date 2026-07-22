@@ -86,12 +86,16 @@ final class SessionExchangeController
             return;
         }
 
-        $claims = (new SessionClaimsResolver($pdo, new TenantRepository($pdo)))->resolve([
-            'id' => (string) $row['id'],
-            'primary_email' => (string) $row['primary_email'],
-            'display_name' => (string) $row['display_name'],
-            'status' => (string) $row['status'],
-        ]);
+        $claims = (new SessionClaimsResolver($pdo, new TenantRepository($pdo)))->resolve(
+            [
+                'id' => (string) $row['id'],
+                'primary_email' => (string) $row['primary_email'],
+                'display_name' => (string) $row['display_name'],
+                'status' => (string) $row['status'],
+            ],
+            isset($body['tenant']) ? (string) $body['tenant'] : null,
+            true,
+        );
 
         $audit->log('exchange.success', $userId, null, Http::clientIp());
         Http::json(200, array_merge([

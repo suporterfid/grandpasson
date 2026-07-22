@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace GrandpaSSOn\Http;
 
+use GrandpaSSOn\Http\Controllers\ActiveTenantController;
 use GrandpaSSOn\Http\Controllers\AdminUiController;
 use GrandpaSSOn\Http\Controllers\CallbackController;
 use GrandpaSSOn\Http\Controllers\HealthController;
@@ -46,6 +47,8 @@ final class AppRoutes
             ['GET', '/me/pats', UserPatController::class, 'list'],
             ['POST', '/me/pats', UserPatController::class, 'create'],
             ['POST', '/me/pats/{id}/revoke', UserPatController::class, 'revoke'],
+            ['GET', '/me/active-tenant', ActiveTenantController::class, 'show'],
+            ['POST', '/me/active-tenant', ActiveTenantController::class, 'set'],
             ['GET', '/site/{site_id}/login', SiteReaderController::class, 'chooser'],
             ['GET', '/site/{site_id}/login/{provider}', SiteReaderController::class, 'login'],
             ['GET', '/site/{site_id}/session', SiteReaderController::class, 'session'],

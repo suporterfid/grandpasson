@@ -115,35 +115,44 @@ final class SessionExchangeClaimsTest extends TestCase
         $this->assertSame('github', $payload['subject']['idp']);
     }
 
-    public function testMultiTenantPicksLowestSlug(): void
+    public function testMultiTenantPrefersOwnerRoleOverLowestSlug(): void
     {
         $userId = $this->seedUser('multi@example.com', 'Multi', null);
         $tenants = new TenantRepository($this->pdo);
         $zeta = $tenants->create('zeta', 'Zeta');
         $alpha = $tenants->create('alpha', 'Alpha');
-        $tenants->addMember($zeta->id, $userId, Tenant::ROLE_MEMBER);
-        $tenants->addMember($alpha->id, $userId, Tenant::ROLE_OWNER);
+        $tenants->addMember($zeta->id, $userId, Tenant::ROLE_OWNER);
+        $tenants->addMember($alpha->id, $userId, Tenant::ROLE_MEMBER);
 
         $payload = $this->exchangeForUser($userId);
-        $this->assertSame('alpha', $payload['tenant']['slug']);
+        $this->assertSame('zeta', $payload['tenant']['slug']);
         $this->assertSame('owner', $payload['tenant']['role']);
         $this->assertCount(2, $payload['tenants']);
         $this->assertNull($payload['subject']['idp']);
     }
 
+    public function testExchangeTenantHintSelectsAndPersists(): void
+    {
+        $userId = $this->seedUser('hint@example.com', 'Hint', null);
+        $tenants = new TenantRepository($this->pdo);
+        $alpha = $tenants->create('alpha', 'Alpha');
+        $beta = $tenants->create('beta', 'Beta');
+        $tenants->addMember($alpha->id, $userId, Tenant::ROLE_MEMBER);
+        $tenants->addMember($beta->id, $userId, Tenant::ROLE_MEMBER);
+
+        $first = $this->exchangeForUser($userId, 'beta');
+        $this->assertSame('beta', $first['tenant']['slug']);
+
+        // Sticky preference survives a later exchange without hint.
+        $second = $this->exchangeForUser($userId);
+        $this->assertSame('beta', $second['tenant']['slug']);
+    }
+
     /** @return array<string, mixed> */
-    private function exchangeForUser(string $userId): array
+    private function exchangeForUser(string $userId, ?string $tenantHint = null): array
     {
         Connection::reset();
         $code = (new AuthCodeService($this->pdo))->mint($userId, 'rp-app', 'https://app.example/cb');
-        $body = json_encode([
-            'code' => $code,
-            'client_id' => 'rp-app',
-            'client_secret' => 's3cret',
-            'redirect_uri' => 'https://app.example/cb',
-        ], JSON_THROW_ON_ERROR);
-
-        // Http::readBody reads php://input; override via temp stream is awkward — use $_POST with form type.
         $_SERVER['CONTENT_TYPE'] = 'application/x-www-form-urlencoded';
         $_POST = [
             'code' => $code,
@@ -151,6 +160,9 @@ final class SessionExchangeClaimsTest extends TestCase
             'client_secret' => 's3cret',
             'redirect_uri' => 'https://app.example/cb',
         ];
+        if ($tenantHint !== null) {
+            $_POST['tenant'] = $tenantHint;
+        }
 
         ob_start();
         (new SessionExchangeController())->exchange($this->config);
