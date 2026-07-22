@@ -18,7 +18,8 @@ final class OAuthTokenController
     /** @param array<string, mixed> $config @param array<string, string> $params */
     public function token(array $config, array $params = []): void
     {
-        if (!RateLimitGate::allow('oauth_token')) {
+        $pdo = Connection::get($config['db']);
+        if (!RateLimitGate::allowDb($pdo, 'oauth_token')) {
             Http::json(429, ['error' => 'rate_limited']);
 
             return;
@@ -31,7 +32,6 @@ final class OAuthTokenController
         $scopeRaw = trim((string) ($body['scope'] ?? ''));
         $audience = trim((string) ($body['audience'] ?? $body['aud'] ?? ''));
 
-        $pdo = Connection::get($config['db']);
         $audit = new AuditLogger($pdo);
         $auth = new ServiceClientAuthenticator(new ServiceClientRepository($pdo));
 

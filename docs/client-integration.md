@@ -98,6 +98,8 @@ curl -sS -X POST https://auth.example.com/oauth/token \
 
 Validate with `POST /oauth/introspect` and revoke with `POST /oauth/revoke` (or `php cron/admin.php token:revoke …`).
 
+`/oauth/token` and `/oauth/introspect` use **DB-backed** per-IP rate limits (shared-hosting friendly; no Redis). Other auth routes keep the file-backed gate.
+
 Rotate secrets with `php cron/admin.php client:rotate-secret <client_id>` (old secret stops working immediately).
 
 ### Personal Access Tokens (user-issued)

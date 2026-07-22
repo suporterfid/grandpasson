@@ -101,8 +101,15 @@ final class RouterTest extends TestCase
             dirname(__DIR__, 2) . '/app/Http/Controllers/OAuthRevokeController.php',
         ] as $file) {
             $src = (string) file_get_contents($file);
-            $this->assertStringContainsString('RateLimitGate::allow', $src, basename($file));
+            $this->assertTrue(
+                str_contains($src, 'RateLimitGate::allowDb') || str_contains($src, 'RateLimitGate::allow'),
+                basename($file),
+            );
         }
+        $tokenSrc = (string) file_get_contents(dirname(__DIR__, 2) . '/app/Http/Controllers/OAuthTokenController.php');
+        $introSrc = (string) file_get_contents(dirname(__DIR__, 2) . '/app/Http/Controllers/OAuthIntrospectController.php');
+        $this->assertStringContainsString('RateLimitGate::allowDb', $tokenSrc);
+        $this->assertStringContainsString('RateLimitGate::allowDb', $introSrc);
     }
 
     private function wiredRouter(): Router

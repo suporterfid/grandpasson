@@ -17,7 +17,8 @@ final class OAuthIntrospectController
     /** @param array<string, mixed> $config @param array<string, string> $params */
     public function introspect(array $config, array $params = []): void
     {
-        if (!RateLimitGate::allow('oauth_introspect')) {
+        $pdo = Connection::get($config['db']);
+        if (!RateLimitGate::allowDb($pdo, 'oauth_introspect')) {
             Http::json(429, ['error' => 'rate_limited']);
 
             return;
@@ -28,7 +29,6 @@ final class OAuthIntrospectController
         $clientSecret = (string) ($body['client_secret'] ?? '');
         $token = (string) ($body['token'] ?? '');
 
-        $pdo = Connection::get($config['db']);
         $audit = new AuditLogger($pdo);
         $auth = new ServiceClientAuthenticator(new ServiceClientRepository($pdo));
         $caller = $auth->authenticate($clientId, $clientSecret);
