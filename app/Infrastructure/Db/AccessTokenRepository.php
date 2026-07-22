@@ -114,7 +114,7 @@ final class AccessTokenRepository
         $this->touchLastUsedIfActive($id);
     }
 
-    public function revokeById(string $id): void
+    public function revokeById(string $id): int
     {
         $stmt = $this->pdo->prepare(
             'UPDATE access_tokens
@@ -125,6 +125,92 @@ final class AccessTokenRepository
             'now' => gmdate('Y-m-d H:i:s'),
             'id' => $id,
         ]);
+
+        return $stmt->rowCount();
+    }
+
+    /** Revoke by plaintext bearer token. Returns 1 if newly revoked, else 0. */
+    public function revokeByToken(string $plaintext): int
+    {
+        $stmt = $this->pdo->prepare(
+            'UPDATE access_tokens
+             SET revoked_at = :now
+             WHERE token_hash = :hash AND revoked_at IS NULL'
+        );
+        $stmt->execute([
+            'now' => gmdate('Y-m-d H:i:s'),
+            'hash' => OpaqueToken::hash($plaintext),
+        ]);
+
+        return $stmt->rowCount();
+    }
+
+    /** Revoke all still-active tokens for a service client. */
+    public function revokeByClientId(string $clientId): int
+    {
+        $stmt = $this->pdo->prepare(
+            'UPDATE access_tokens
+             SET revoked_at = :now
+             WHERE client_id = :client_id AND revoked_at IS NULL'
+        );
+        $stmt->execute([
+            'now' => gmdate('Y-m-d H:i:s'),
+            'client_id' => $clientId,
+        ]);
+
+        return $stmt->rowCount();
+    }
+
+    /** Revoke all still-active tokens for a subject user. */
+    public function revokeBySubjectId(string $subjectUserId): int
+    {
+        $stmt = $this->pdo->prepare(
+            'UPDATE access_tokens
+             SET revoked_at = :now
+             WHERE subject_user_id = :subject AND revoked_at IS NULL'
+        );
+        $stmt->execute([
+            'now' => gmdate('Y-m-d H:i:s'),
+            'subject' => $subjectUserId,
+        ]);
+
+        return $stmt->rowCount();
+    }
+
+    /**
+     * @return list<AccessToken>
+     */
+    public function listActive(?string $clientId = null, ?string $subjectUserId = null): array
+    {
+        $sql = 'SELECT * FROM access_tokens WHERE revoked_at IS NULL AND expires_at > :now';
+        $params = ['now' => gmdate('Y-m-d H:i:s')];
+        if ($clientId !== null && $clientId !== '') {
+            $sql .= ' AND client_id = :client_id';
+            $params['client_id'] = $clientId;
+        }
+        if ($subjectUserId !== null && $subjectUserId !== '') {
+            $sql .= ' AND subject_user_id = :subject';
+            $params['subject'] = $subjectUserId;
+        }
+        $sql .= ' ORDER BY created_at DESC';
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute($params);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $out = [];
+        foreach ($rows as $row) {
+            $out[] = $this->map($row);
+        }
+
+        return $out;
+    }
+
+    public function findById(string $id): ?AccessToken
+    {
+        $stmt = $this->pdo->prepare('SELECT * FROM access_tokens WHERE id = :id LIMIT 1');
+        $stmt->execute(['id' => $id]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return $row === false ? null : $this->map($row);
     }
 
     /** @param array<string, mixed> $row */
