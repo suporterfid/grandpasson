@@ -4,20 +4,25 @@ declare(strict_types=1);
 
 namespace GrandpaSSOn\Http\Controllers;
 
+use GrandpaSSOn\Infrastructure\Audit\AuditLogger;
 use GrandpaSSOn\Infrastructure\Db\Connection;
 use GrandpaSSOn\Infrastructure\Session\MysqlSessionHandler;
+use GrandpaSSOn\Support\Csrf;
+use GrandpaSSOn\Support\Http;
 
 final class LogoutController
 {
     /** @param array<string, mixed> $config @param array<string, string> $params */
     public function handle(array $config, array $params = []): void
     {
+        $pdo = Connection::get($config['db']);
+        $audit = new AuditLogger($pdo);
+        $userId = isset($_SESSION['user_id']) ? (string) $_SESSION['user_id'] : null;
+
         $csrf = (string) ($_POST['csrf'] ?? '');
-        $sessionCsrf = (string) ($_SESSION['csrf'] ?? '');
-        if ($sessionCsrf === '' || $csrf === '' || !hash_equals($sessionCsrf, $csrf)) {
-            http_response_code(403);
-            header('Content-Type: application/json; charset=utf-8');
-            echo json_encode(['error' => 'invalid_csrf'], JSON_THROW_ON_ERROR);
+        if (!Csrf::validate($csrf)) {
+            $audit->log('logout.failure', $userId, null, Http::clientIp());
+            Http::json(403, ['error' => 'invalid_csrf']);
 
             return;
         }
@@ -39,7 +44,6 @@ final class LogoutController
 
         if ($sessionId !== '') {
             try {
-                $pdo = Connection::get($config['db']);
                 $ttl = max(60, (int) $config['session']['ttl_minutes'] * 60);
                 $handler = new MysqlSessionHandler($pdo, $ttl);
                 $handler->destroy($sessionId);
@@ -48,7 +52,7 @@ final class LogoutController
             }
         }
 
-        header('Content-Type: application/json; charset=utf-8');
-        echo json_encode(['ok' => true], JSON_THROW_ON_ERROR);
+        $audit->log('logout.success', $userId, null, Http::clientIp());
+        Http::json(200, ['ok' => true]);
     }
 }

@@ -1,4 +1,4 @@
-.PHONY: up down migrate test build check-migrations
+.PHONY: up down migrate test build check-migrations tools cron
 
 up:
 	@test -f .env || cp .env.example .env
@@ -7,8 +7,11 @@ up:
 tools:
 	docker compose --profile tools up -d phpmyadmin
 
+cron:
+	docker compose --profile cron up -d --build cron
+
 down:
-	docker compose --profile tools down
+	docker compose --profile tools --profile cron down
 
 migrate:
 	php cron/migrate.php
@@ -21,3 +24,9 @@ test:
 
 build:
 	docker compose -f docker-compose.build.yml run --rm build
+
+cleanup-sessions:
+	php cron/cleanup_sessions.php
+
+cleanup-auth-codes:
+	php cron/cleanup_auth_codes.php
