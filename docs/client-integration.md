@@ -126,7 +126,24 @@ Rotate secrets with `php cron/admin.php client:rotate-secret <client_id>` (old s
 
 ### Personal Access Tokens (user-issued)
 
-For an agent acting **on behalf of a user** (R10), mint a long-lived opaque PAT via admin CLI (hashed at rest; plaintext shown once):
+Authenticated subjects manage their own PATs (R10) via the broker session cookie (`AUTHSESSID`):
+
+```bash
+# List (also returns a csrf token for mutations)
+curl -sS https://auth.example.com/me/pats -b 'AUTHSESSID=…'
+
+# Create (plaintext token shown once; hashed at rest)
+curl -sS -X POST https://auth.example.com/me/pats -b 'AUTHSESSID=…' \
+  -H 'Content-Type: application/json' \
+  -d '{"csrf":"…","scopes":"kb:read","label":"Notes agent","aud":"workspace/abc123","ttl_days":365}'
+
+# Revoke
+curl -sS -X POST https://auth.example.com/me/pats/<token_id>/revoke -b 'AUTHSESSID=…' \
+  -H 'Content-Type: application/json' \
+  -d '{"csrf":"…"}'
+```
+
+Admin break-glass CLI remains available:
 
 ```bash
 php cron/admin.php pat:create <user_uuid> \
@@ -136,7 +153,7 @@ php cron/admin.php pat:create <user_uuid> \
   --ttl-days=365
 ```
 
-List / revoke: `pat:list [--subject=…]`, `pat:revoke <token_id>|--subject=…`.
+List / revoke (admin): `pat:list [--subject=…]`, `pat:revoke <token_id>|--subject=…`.
 
 Introspection (`POST /oauth/introspect` with a service client) returns `token_use: "pat"`, `sub` = user id, `client_id` null, and updates `last_used_at` when active.
 
