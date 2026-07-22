@@ -51,8 +51,9 @@ Set at least:
 | Variable | Notes |
 |---|---|
 | `APP_ENV` | `prod` (or `dev` only for throwaway demos) |
+| `FORCE_HTTPS` | Optional override; when unset, HTTPS is enforced for `APP_ENV=prod` |
 | `BROKER_BASE_URL` | `https://auth.example.com` (no trailing slash required) |
-| `SESSION_COOKIE_SECURE` | `true` behind HTTPS |
+| `SESSION_COOKIE_SECURE` | `true` behind HTTPS (forced `true` when HTTPS enforcement is on) |
 | `DB_*` | MySQL credentials from cPanel |
 | `ALLOWED_EMAIL_DOMAINS` | Comma-separated; empty outside `APP_ENV=dev` refuses auto-create |
 | `MIGRATE_TOKEN` | Leave empty unless you intentionally expose HTTP migrate |
@@ -104,8 +105,10 @@ See [client-integration.md](client-integration.md) §5 for machine-token flows. 
 
 ## 6. HTTPS and cookies
 
-- Enable AutoSSL (or equivalent) and force HTTPS.
-- Keep `SESSION_COOKIE_SECURE=true`, cookie name `AUTHSESSID`, `HttpOnly`, `SameSite=Lax`.
+- Enable AutoSSL (or equivalent) at the host/CDN.
+- The broker also enforces HTTPS in PHP when `APP_ENV=prod` or `FORCE_HTTPS=true`: cleartext requests get a **301** to `https://…` (honours `X-Forwarded-Proto` for TLS-terminating proxies). Local `APP_ENV=dev` stays HTTP-friendly unless you set `FORCE_HTTPS=true`.
+- Optional Apache rules are commented in `public_html/.htaccess` if you prefer host-level redirects in addition to the PHP gate.
+- Cookie: `AUTHSESSID`, `HttpOnly`, `SameSite=Lax`, and `Secure` when HTTPS enforcement is on (even if `SESSION_COOKIE_SECURE` was left `false`).
 
 ## 7. Register apps and IdPs
 
