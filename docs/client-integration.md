@@ -50,15 +50,28 @@ curl -sS -X POST https://auth.example.com/session/exchange \
   -d 'redirect_uri=http://localhost:3000/callback'
 ```
 
-JSON response:
+JSON response (v0 fields plus v1 tenancy when configured):
 
 ```json
-{ "id": "…", "email": "…", "display_name": "…", "status": "active" }
+{
+  "id": "42",
+  "email": "user@example.com",
+  "display_name": "Example User",
+  "status": "active",
+  "subject": {
+    "id": "42",
+    "email": "user@example.com",
+    "name": "Example User",
+    "idp": "google"
+  },
+  "tenant": { "id": "…", "slug": "acme", "role": "admin" },
+  "tenants": [{ "id": "…", "slug": "acme", "role": "admin" }],
+  "groups": ["editors"],
+  "scopes": ["openid", "profile", "email", "tenant:read"]
+}
 ```
 
-Create your own app session from that payload. Public / secretless clients are rejected.
-
-v1 additive claims (when tenancy is configured) also include `subject`, `tenant`, `tenants`, `groups`, and `scopes`. See the v1 extension spec §6.2.
+Create your own app session from that payload. Public / secretless clients are rejected. Treat unknown keys as ignorable. See the v1 extension spec §6.2 for claim authority. When the user has no tenant membership, `tenant` is `null` and `tenants` / `groups` are empty arrays.
 
 ## 5. Service clients (v1 machine tokens)
 
@@ -97,7 +110,7 @@ curl -sS https://auth.example.com/session -b 'AUTHSESSID=…'
 
 Cross-host apps should prefer exchange, not the cookie.
 
-## 6. Logout
+## 7. Logout
 
 ```bash
 curl -sS -X POST https://auth.example.com/logout \
