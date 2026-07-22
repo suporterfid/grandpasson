@@ -68,6 +68,29 @@ final class ServiceClientRepository
         return $client;
     }
 
+    /**
+     * Rotate client secret. Returns the new plaintext secret (show once).
+     */
+    public function rotateSecret(string $clientId): string
+    {
+        if ($this->findByClientId($clientId) === null) {
+            throw new \InvalidArgumentException('Unknown service client: ' . $clientId);
+        }
+        $plaintext = rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=');
+        $stmt = $this->pdo->prepare(
+            'UPDATE service_clients
+             SET client_secret_hash = :hash, updated_at = :updated_at
+             WHERE client_id = :client_id'
+        );
+        $stmt->execute([
+            'hash' => ClientSecretHasher::hash($plaintext),
+            'updated_at' => gmdate('Y-m-d H:i:s'),
+            'client_id' => $clientId,
+        ]);
+
+        return $plaintext;
+    }
+
     /** @param array<string, mixed> $row */
     private function map(array $row): ServiceClient
     {

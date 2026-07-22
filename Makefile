@@ -1,4 +1,4 @@
-.PHONY: up down migrate test build check-migrations tools cron seed-client
+.PHONY: up down migrate test build check-migrations tools cron seed-client admin
 
 up:
 	@test -f .env || cp .env.example .env
@@ -25,6 +25,9 @@ seed-client:
 		--name="$(or $(NAME),$(CLIENT_ID))" \
 		--redirect-uri="$(REDIRECT_URI)" \
 		--secret="$(SECRET)"
+
+admin:
+	php cron/admin.php $(ARGS)
 
 check-migrations:
 	@diff -rq app/Infrastructure/Db/Migrations docker/mysql/init
