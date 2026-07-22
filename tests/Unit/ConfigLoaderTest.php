@@ -56,6 +56,7 @@ DB_USER=grandpasson
 DB_PASSWORD=secret
 ALLOWED_EMAIL_DOMAINS=Example.com, Contoso.COM ,
 MIGRATE_TOKEN=tok
+ADMIN_API_TOKEN=admin-secret
 MS_TENANT_ID=tenant-1
 GOOGLE_CLIENT_ID=g-id
 ENV);
@@ -71,6 +72,7 @@ ENV);
         $this->assertSame('secret', $config['db']['password']);
         $this->assertSame(['example.com', 'contoso.com'], $config['allowed_email_domains']);
         $this->assertSame('tok', $config['migrate_token']);
+        $this->assertSame('admin-secret', $config['admin_api_token']);
         $this->assertSame('tenant-1', $config['providers']['microsoft']['tenant_id']);
         $this->assertSame('g-id', $config['providers']['google']['client_id']);
         $this->assertContains('openid', $config['providers']['google']['scopes']);
@@ -182,7 +184,7 @@ ENV;
             'APP_ENV', 'BROKER_BASE_URL', 'BROKER_NAME',
             'SESSION_COOKIE_NAME', 'SESSION_COOKIE_SECURE', 'SESSION_TTL_MINUTES',
             'DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD',
-            'ALLOWED_EMAIL_DOMAINS', 'MIGRATE_TOKEN',
+            'ALLOWED_EMAIL_DOMAINS', 'MIGRATE_TOKEN', 'ADMIN_API_TOKEN',
             'ACCESS_TOKEN_TTL_SECONDS', 'ACCESS_TOKEN_TTL_MAX_SECONDS', 'AUDIT_RETENTION_DAYS',
             'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_REDIRECT_URI',
             'MS_CLIENT_ID', 'MS_CLIENT_SECRET', 'MS_TENANT_ID', 'MS_REDIRECT_URI',
