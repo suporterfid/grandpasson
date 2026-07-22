@@ -6,10 +6,13 @@ namespace GrandpaSSOn\Http\Controllers;
 
 use GrandpaSSOn\Infrastructure\Audit\AuditLogger;
 use GrandpaSSOn\Infrastructure\Db\Connection;
-use GrandpaSSOn\Infrastructure\Db\OAuthClientRepository;
 use GrandpaSSOn\Infrastructure\Providers\Pkce;
 use GrandpaSSOn\Infrastructure\Providers\ProviderException;
 use GrandpaSSOn\Infrastructure\Providers\ProviderFactory;
+use GrandpaSSOn\Infrastructure\Db\OAuthClientRepository;
+use GrandpaSSOn\Support\Csrf;
+use GrandpaSSOn\Support\Http;
+use GrandpaSSOn\Support\RateLimitGate;
 
 final class LoginController
 {
@@ -29,9 +32,15 @@ final class LoginController
     /** @param array<string, mixed> $config @param array<string, string> $params */
     public function start(array $config, array $params = []): void
     {
+        if (!RateLimitGate::allow('login')) {
+            Http::json(429, ['error' => 'rate_limited']);
+
+            return;
+        }
+
         $providerName = strtolower($params['provider'] ?? '');
         if (!in_array($providerName, ['google', 'microsoft', 'github'], true)) {
-            $this->jsonError(400, 'invalid_provider', 'Unknown provider');
+            Http::json(400, ['error' => 'invalid_provider', 'message' => 'Unknown provider']);
 
             return;
         }
@@ -42,7 +51,7 @@ final class LoginController
         $returnTo = (string) ($_GET['return_to'] ?? '');
 
         if ($clientId === '' || $redirectUri === '' || $clientState === '') {
-            $this->jsonError(400, 'invalid_request', 'client_id, redirect_uri, and state are required');
+            Http::json(400, ['error' => 'invalid_request', 'message' => 'client_id, redirect_uri, and state are required']);
 
             return;
         }
@@ -53,18 +62,18 @@ final class LoginController
         $client = $clients->findByClientId($clientId);
 
         if ($client === null) {
-            $this->jsonError(400, 'invalid_client', 'Unknown client_id');
+            Http::json(400, ['error' => 'invalid_client', 'message' => 'Unknown client_id']);
 
             return;
         }
         if (!$client->enabled) {
-            $audit->log('login.disabled_client', null, $providerName, $_SERVER['REMOTE_ADDR'] ?? null);
-            $this->jsonError(403, 'disabled_client', 'OAuth client is disabled');
+            $audit->log('login.disabled_client', null, $providerName, Http::clientIp());
+            Http::json(403, ['error' => 'disabled_client', 'message' => 'OAuth client is disabled']);
 
             return;
         }
         if (!$client->allowsRedirectUri($redirectUri)) {
-            $this->jsonError(400, 'invalid_redirect_uri', 'redirect_uri does not match registered URIs');
+            Http::json(400, ['error' => 'invalid_redirect_uri', 'message' => 'redirect_uri does not match registered URIs']);
 
             return;
         }
@@ -73,7 +82,7 @@ final class LoginController
             $factory = new ProviderFactory($config);
             $provider = $factory->make($providerName);
         } catch (ProviderException $e) {
-            $this->jsonError(500, 'provider_config', $e->getMessage());
+            Http::json(500, ['error' => 'provider_config', 'message' => $e->getMessage()]);
 
             return;
         }
@@ -92,19 +101,8 @@ final class LoginController
             'client_state' => $clientState,
             'return_to' => $returnTo,
         ];
-        if (empty($_SESSION['csrf'])) {
-            $_SESSION['csrf'] = bin2hex(random_bytes(16));
-        }
+        Csrf::token();
 
-        $url = $provider->getAuthorizationUrl($oauthState, $nonce, $pkce);
-        header('Location: ' . $url, true, 302);
-        exit;
-    }
-
-    private function jsonError(int $status, string $error, string $message): void
-    {
-        http_response_code($status);
-        header('Content-Type: application/json; charset=utf-8');
-        echo json_encode(['error' => $error, 'message' => $message], JSON_THROW_ON_ERROR);
+        Http::redirect($provider->getAuthorizationUrl($oauthState, $nonce, $pkce));
     }
 }

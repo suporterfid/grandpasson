@@ -10,12 +10,21 @@ use GrandpaSSOn\Infrastructure\Db\Connection;
 use GrandpaSSOn\Infrastructure\Providers\ProviderException;
 use GrandpaSSOn\Infrastructure\Providers\ProviderFactory;
 use GrandpaSSOn\Infrastructure\Provisioning\UserProvisioner;
+use GrandpaSSOn\Support\Csrf;
+use GrandpaSSOn\Support\Http;
+use GrandpaSSOn\Support\RateLimitGate;
 
 final class CallbackController
 {
     /** @param array<string, mixed> $config @param array<string, string> $params */
     public function handle(array $config, array $params = []): void
     {
+        if (!RateLimitGate::allow('callback')) {
+            Http::json(429, ['error' => 'rate_limited']);
+
+            return;
+        }
+
         $providerName = strtolower($params['provider'] ?? '');
         $oauth = $_SESSION['oauth'] ?? null;
 
@@ -67,9 +76,7 @@ final class CallbackController
             $_SESSION['display_name'] = $user->displayName;
             $_SESSION['status'] = $user->status;
             $_SESSION['avatar_url'] = $user->avatarUrl;
-            if (empty($_SESSION['csrf'])) {
-                $_SESSION['csrf'] = bin2hex(random_bytes(16));
-            }
+            Csrf::token();
 
             $codes = new AuthCodeService($pdo);
             $rawCode = $codes->mint($user->id, (string) $oauth['client_id'], (string) $oauth['redirect_uri']);
@@ -78,20 +85,19 @@ final class CallbackController
             $redirectUri = (string) $oauth['redirect_uri'];
             unset($_SESSION['oauth']);
 
-            $audit->log('login.success', $user->id, $providerName, $_SERVER['REMOTE_ADDR'] ?? null);
+            $audit->log('login.success', $user->id, $providerName, Http::clientIp());
 
             $sep = str_contains($redirectUri, '?') ? '&' : '?';
             $target = $redirectUri . $sep . http_build_query([
                 'code' => $rawCode,
                 'state' => $clientState,
             ]);
-            header('Location: ' . $target, true, 302);
-            exit;
+            Http::redirect($target);
         } catch (ProviderException $e) {
-            $audit->log('login.failure', null, $providerName, $_SERVER['REMOTE_ADDR'] ?? null);
+            $audit->log('login.failure', null, $providerName, Http::clientIp());
             $this->fail(400, 'login_failed', $e->getMessage());
         } catch (\Throwable $e) {
-            $audit->log('login.failure', null, $providerName, $_SERVER['REMOTE_ADDR'] ?? null);
+            $audit->log('login.failure', null, $providerName, Http::clientIp());
             $this->fail(500, 'server_error', 'Callback processing failed');
         }
     }

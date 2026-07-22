@@ -84,5 +84,25 @@ services:
       mysql:
         condition: service_healthy
 
+  # Optional: docker compose --profile cron up -d
+  # Mirrors cPanel cron schedules from spec §15 against the same cleanup scripts.
+  cron:
+    profiles: ["cron"]
+    build: ./docker/cron
+    volumes:
+      - ./cron:/var/www/html/cron:ro
+      - ./app:/var/www/html/app:ro
+      - ./vendor:/var/www/html/vendor:ro
+      - ./.env:/var/www/html/.env:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - DB_HOST=host.docker.internal
+    env_file:
+      - .env
+    depends_on:
+      mysql:
+        condition: service_healthy
+
 volumes:
   dbdata:

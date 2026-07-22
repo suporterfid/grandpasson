@@ -1,0 +1,6 @@
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# /etc/cron.d format requires a username column.
+*/15 * * * * root cd /var/www/html && /usr/local/bin/php cron/cleanup_sessions.php >> /var/log/cron.log 2>&1
+*/5 * * * * root cd /var/www/html && /usr/local/bin/php cron/cleanup_auth_codes.php >> /var/log/cron.log 2>&1
