@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace GrandpaSSOn\Tests\Integration;
 
 use GrandpaSSOn\Http\Controllers\AdminUiController;
+use GrandpaSSOn\Infrastructure\Admin\AdminCommandRunner;
 use GrandpaSSOn\Infrastructure\Db\Connection;
 use GrandpaSSOn\Support\RateLimitGate;
 use PDO;
@@ -127,6 +128,24 @@ final class AdminHttpTest extends TestCase
         $this->assertSame(200, http_response_code());
         $this->assertStringContainsString('tenant:create', $html);
         $this->assertStringContainsString('/admin/api', $html);
+        foreach (AdminCommandRunner::verbs() as $verb) {
+            $this->assertStringContainsString('value="' . $verb . '"', $html, $verb);
+        }
+    }
+
+    public function testUiVerbListMatchesCliRunner(): void
+    {
+        $verbs = AdminCommandRunner::verbs();
+        $this->assertContains('site:create', $verbs);
+        $this->assertContains('site:set-visibility', $verbs);
+        $this->assertContains('jwt:key-rotate', $verbs);
+        $this->assertContains('jwt:key-list', $verbs);
+        $this->assertContains('jwt:key-retire', $verbs);
+
+        $help = (string) file_get_contents(dirname(__DIR__, 2) . '/cron/admin.php');
+        foreach ($verbs as $verb) {
+            $this->assertStringContainsString($verb, $help, 'cron/admin.php help should document ' . $verb);
+        }
     }
 
     private function rootPdo(): PDO

@@ -38,6 +38,11 @@ final class AdminUiController
 
         $csrf = Csrf::token();
         $name = htmlspecialchars((string) ($config['broker']['name'] ?? 'GrandpaSSOn'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $verbOptions = '';
+        foreach (AdminCommandRunner::verbs() as $verb) {
+            $safe = htmlspecialchars($verb, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+            $verbOptions .= "      <option value=\"{$safe}\">{$safe}</option>\n";
+        }
         header('Content-Type: text/html; charset=utf-8');
         echo <<<HTML
 <!doctype html>
@@ -74,18 +79,7 @@ final class AdminUiController
     <input id="admin_token" name="admin_token" type="password" autocomplete="off" required>
     <label for="verb">Verb</label>
     <select id="verb" name="verb">
-      <option value="tenant:create">tenant:create</option>
-      <option value="tenant:add-member">tenant:add-member</option>
-      <option value="group:create">group:create</option>
-      <option value="group:add-member">group:add-member</option>
-      <option value="client:create-service">client:create-service</option>
-      <option value="client:rotate-secret">client:rotate-secret</option>
-      <option value="token:list">token:list</option>
-      <option value="token:revoke">token:revoke</option>
-      <option value="pat:create">pat:create</option>
-      <option value="pat:list">pat:list</option>
-      <option value="pat:revoke">pat:revoke</option>
-    </select>
+{$verbOptions}    </select>
     <label for="args">Positional args (space-separated)</label>
     <input id="args" name="args" placeholder="acme &quot;Acme Corp&quot;">
     <label for="flags">Flags (one --key=value per line)</label>
