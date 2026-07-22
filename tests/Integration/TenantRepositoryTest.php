@@ -164,6 +164,7 @@ final class TenantRepositoryTest extends TestCase
             'tenant_members',
             'groups',
             'group_members',
+            'audit_log',
         ];
 
         foreach ($required as $table) {
@@ -195,7 +196,7 @@ final class TenantRepositoryTest extends TestCase
             $admin->exec('USE `' . $dbName . '`');
             $migrator = new Migrator($admin, dirname(__DIR__, 2) . '/app/Infrastructure/Db/Migrations');
             $applied = $migrator->migrate();
-            $this->assertCount(10, $applied);
+            $this->assertCount(11, $applied);
             $this->assertContains('010_create_group_members.sql', $applied);
             $this->assertSame([], $migrator->migrate());
 
