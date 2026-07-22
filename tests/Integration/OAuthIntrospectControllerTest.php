@@ -86,6 +86,8 @@ final class OAuthIntrospectControllerTest extends TestCase
         $this->assertSame('workspace/abc', $payload['aud']);
         $this->assertNull($payload['sub']);
         $this->assertNull($payload['tenant']);
+        $this->assertSame('access', $payload['token_use']);
+        $this->assertSame('access', $payload['token_type']);
         $this->assertSame(
             strtotime($issued['record']->expiresAt . ' UTC'),
             $payload['exp']

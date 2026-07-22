@@ -101,6 +101,8 @@ final class OAuthIntrospectController
             'aud' => $record->aud,
             'tenant' => $record->tenantId,
             'exp' => $exp,
+            'token_use' => $record->isPat() ? 'pat' : 'access',
+            'token_type' => $record->kind,
         ]);
     }
 }

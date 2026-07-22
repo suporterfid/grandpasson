@@ -100,6 +100,22 @@ Validate with `POST /oauth/introspect` and revoke with `POST /oauth/revoke` (or 
 
 Rotate secrets with `php cron/admin.php client:rotate-secret <client_id>` (old secret stops working immediately).
 
+### Personal Access Tokens (user-issued)
+
+For an agent acting **on behalf of a user** (R10), mint a long-lived opaque PAT via admin CLI (hashed at rest; plaintext shown once):
+
+```bash
+php cron/admin.php pat:create <user_uuid> \
+  --scopes=kb:read \
+  --label="Notes agent" \
+  --aud=workspace/abc123 \
+  --ttl-days=365
+```
+
+List / revoke: `pat:list [--subject=…]`, `pat:revoke <token_id>|--subject=…`.
+
+Introspection (`POST /oauth/introspect` with a service client) returns `token_use: "pat"`, `sub` = user id, `client_id` null, and updates `last_used_at` when active.
+
 ## 6. Same-host introspection (optional)
 
 If the browser shares the broker host cookie (`AUTHSESSID`):

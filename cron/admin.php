@@ -16,8 +16,11 @@ declare(strict_types=1);
  *   group:add-member <tenant> <group> <subject>
  *   client:create-service <name> --scopes=kb:read[,kb:write] [--aud=workspace/…] [--client-id=…]
  *   client:rotate-secret <client_id>
- *   token:list [--client=…] [--subject=…]
+ *   token:list [--client=…] [--subject=…] [--kind=access|pat]
  *   token:revoke <token_id> | --client=… | --subject=…
+ *   pat:create <subject_user_id> --scopes=kb:read[,…] [--label=…] [--aud=…] [--ttl-days=365]
+ *   pat:list [--subject=…]
+ *   pat:revoke <token_id> | --subject=…
  */
 
 use GrandpaSSOn\Config\ConfigLoader;
@@ -45,8 +48,11 @@ Verbs:
   group:add-member <tenant> <group> <subject>
   client:create-service <name> --scopes=… [--aud=…] [--client-id=…]
   client:rotate-secret <client_id>
-  token:list [--client=…] [--subject=…]
+  token:list [--client=…] [--subject=…] [--kind=access|pat]
   token:revoke <token_id> | --client=… | --subject=…
+  pat:create <subject_user_id> --scopes=… [--label=…] [--aud=…] [--ttl-days=365]
+  pat:list [--subject=…]
+  pat:revoke <token_id> | --subject=…
 
 TXT);
     exit(0);
@@ -87,17 +93,31 @@ try {
         exit(0);
     }
 
-    if (($verb === 'token:list') && isset($result['tokens']) && is_array($result['tokens'])) {
+    if (isset($result['token']) && ($verb === 'pat:create')) {
+        echo "token_id:  {$result['token_id']}\n";
+        echo "token:     {$result['token']}  (shown once; store securely)\n";
+        echo "subject:   {$result['subject_user_id']}\n";
+        echo "scope:     {$result['scope']}\n";
+        echo 'aud:       ' . ($result['aud'] ?? '(none)') . "\n";
+        echo 'label:     ' . ($result['label'] ?? '(none)') . "\n";
+        echo "expires:   {$result['expires_at']}\n";
+        exit(0);
+    }
+
+    if (in_array($verb, ['token:list', 'pat:list'], true) && isset($result['tokens']) && is_array($result['tokens'])) {
         echo "count: {$result['count']}\n";
         foreach ($result['tokens'] as $row) {
             echo sprintf(
-                "%s  client=%s  subject=%s  scope=%s  aud=%s  exp=%s\n",
+                "%s  kind=%s  label=%s  client=%s  subject=%s  scope=%s  aud=%s  exp=%s  last_used=%s\n",
                 $row['id'],
-                $row['client_id'],
+                $row['kind'] ?? '-',
+                $row['label'] ?? '-',
+                $row['client_id'] ?? '-',
                 $row['subject_user_id'] ?? '-',
                 $row['scope'],
                 $row['aud'] ?? '-',
                 $row['expires_at'],
+                $row['last_used_at'] ?? '-',
             );
         }
         exit(0);

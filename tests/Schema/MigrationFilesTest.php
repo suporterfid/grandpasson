@@ -18,12 +18,12 @@ final class MigrationFilesTest extends TestCase
         $this->dockerInit = $root . '/docker/mysql/init';
     }
 
-    public function testBothTreesContainThirteenMigrationFiles(): void
+    public function testBothTreesContainExpectedMigrationFiles(): void
     {
         $app = $this->sqlBasenames($this->appMigrations);
         $docker = $this->sqlBasenames($this->dockerInit);
 
-        self::assertCount(13, $app);
+        self::assertCount(14, $app);
         self::assertSame(
             [
                 '001_create_users.sql',
@@ -39,6 +39,7 @@ final class MigrationFilesTest extends TestCase
                 '011_create_audit_log.sql',
                 '012_create_service_clients.sql',
                 '013_create_access_tokens.sql',
+                '014_alter_access_tokens_for_pats.sql',
             ],
             $app
         );
@@ -54,10 +55,13 @@ final class MigrationFilesTest extends TestCase
         }
     }
 
-    public function testEveryTableUsesInnoDb(): void
+    public function testCreateTableMigrationsUseInnoDb(): void
     {
         foreach ($this->sqlBasenames($this->appMigrations) as $name) {
-            $sql = file_get_contents($this->appMigrations . '/' . $name);
+            $sql = (string) file_get_contents($this->appMigrations . '/' . $name);
+            if (!preg_match('/\bCREATE\s+TABLE\b/i', $sql)) {
+                continue;
+            }
             self::assertMatchesRegularExpression('/ENGINE\s*=\s*InnoDB/i', $sql, $name);
         }
     }
