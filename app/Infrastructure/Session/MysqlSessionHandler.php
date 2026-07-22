@@ -55,19 +55,19 @@ final class MysqlSessionHandler implements SessionHandlerInterface
         $expires = $now + $this->ttlSeconds;
 
         if ($data === $this->lastWrittenData) {
+            // Touch expiry only — do not rewrite the data blob (write-on-change).
             $stmt = $this->pdo->prepare(
-                'UPDATE sessions SET last_access = :last_access, expires_at = :expires_at WHERE id = :id'
+                'INSERT INTO sessions (id, user_id, data, last_access, expires_at)
+                 VALUES (:id, NULL, :data, :last_access, :expires_at)
+                 ON DUPLICATE KEY UPDATE last_access = VALUES(last_access), expires_at = VALUES(expires_at)'
             );
-            $stmt->execute([
+
+            return $stmt->execute([
+                'id' => $id,
+                'data' => $data,
                 'last_access' => $now,
                 'expires_at' => $expires,
-                'id' => $id,
             ]);
-            if ($stmt->rowCount() === 0) {
-                return $this->insert($id, $data, $now, $expires);
-            }
-
-            return true;
         }
 
         $stmt = $this->pdo->prepare(
@@ -103,24 +103,5 @@ final class MysqlSessionHandler implements SessionHandlerInterface
         $stmt->execute(['now' => time()]);
 
         return $stmt->rowCount();
-    }
-
-    private function insert(string $id, string $data, int $now, int $expires): bool
-    {
-        $stmt = $this->pdo->prepare(
-            'INSERT INTO sessions (id, user_id, data, last_access, expires_at)
-             VALUES (:id, NULL, :data, :last_access, :expires_at)'
-        );
-        $ok = $stmt->execute([
-            'id' => $id,
-            'data' => $data,
-            'last_access' => $now,
-            'expires_at' => $expires,
-        ]);
-        if ($ok) {
-            $this->lastWrittenData = $data;
-        }
-
-        return $ok;
     }
 }

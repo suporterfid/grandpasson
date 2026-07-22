@@ -38,7 +38,7 @@ final class Migrator
                 throw new \RuntimeException('Unable to read migration: ' . $file);
             }
 
-            $this->pdo->beginTransaction();
+            // MySQL DDL implicitly commits; do not wrap migrations in a transaction.
             try {
                 $this->pdo->exec($sql);
                 $stmt = $this->pdo->prepare(
@@ -48,13 +48,9 @@ final class Migrator
                     'migration' => $name,
                     'applied_at' => gmdate('Y-m-d H:i:s'),
                 ]);
-                $this->pdo->commit();
                 $newlyApplied[] = $name;
             } catch (\Throwable $e) {
-                if ($this->pdo->inTransaction()) {
-                    $this->pdo->rollBack();
-                }
-                throw $e;
+                throw new \RuntimeException('Failed applying migration ' . $name . ': ' . $e->getMessage(), 0, $e);
             }
         }
 
