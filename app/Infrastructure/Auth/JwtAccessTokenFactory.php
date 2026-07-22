@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace GrandpaSSOn\Infrastructure\Auth;
 
 use GrandpaSSOn\Domain\AccessToken;
+use GrandpaSSOn\Infrastructure\Db\JwtSigningKeyRepository;
 use Firebase\JWT\JWT;
+use PDO;
 
 /**
- * Optional short-lived JWT companion for opaque access tokens (R15).
+ * Optional short-lived JWT companion for opaque access tokens (R15/R16).
+ * Prefers active RS256 signing keys (rotatable); falls back to HS256 env secret.
  * Opaque token remains authoritative for revocation; JWT is a fast-path until exp.
  */
 final class JwtAccessTokenFactory
@@ -16,14 +19,20 @@ final class JwtAccessTokenFactory
     /**
      * @param array<string, mixed> $config
      */
-    public static function enabled(array $config): bool
+    public static function enabled(array $config, ?PDO $pdo = null): bool
     {
         $jwt = $config['jwt'] ?? [];
-        if (!is_array($jwt)) {
+        if (!is_array($jwt) || !(bool) ($jwt['enabled'] ?? false)) {
             return false;
         }
-        if (!(bool) ($jwt['enabled'] ?? false)) {
-            return false;
+        if ($pdo !== null) {
+            try {
+                if ((new JwtSigningKeyRepository($pdo))->findActive() !== null) {
+                    return true;
+                }
+            } catch (\Throwable) {
+                // Table may not exist yet during partial upgrades.
+            }
         }
 
         return (string) ($jwt['hmac_secret'] ?? '') !== '';
@@ -32,12 +41,12 @@ final class JwtAccessTokenFactory
     /**
      * @param array<string, mixed> $config
      */
-    public static function mint(array $config, AccessToken $record): string
+    public static function mint(array $config, AccessToken $record, ?PDO $pdo = null): string
     {
-        if (!self::enabled($config)) {
+        if (!self::enabled($config, $pdo)) {
             throw new \RuntimeException('JWT access tokens are disabled');
         }
-        $secret = (string) $config['jwt']['hmac_secret'];
+
         $iss = (string) ($config['broker']['base_url'] ?? '');
         $exp = strtotime($record->expiresAt . ' UTC');
         $iat = strtotime($record->createdAt . ' UTC');
@@ -57,6 +66,18 @@ final class JwtAccessTokenFactory
             'aud' => $record->aud,
             'tenant' => $record->tenantId,
         ];
+
+        if ($pdo !== null) {
+            $active = (new JwtSigningKeyRepository($pdo))->findActive();
+            if ($active !== null) {
+                return JWT::encode($payload, $active->privatePem, 'RS256', $active->kid);
+            }
+        }
+
+        $secret = (string) ($config['jwt']['hmac_secret'] ?? '');
+        if ($secret === '') {
+            throw new \RuntimeException('No active JWT signing key and JWT_HMAC_SECRET is empty');
+        }
 
         return JWT::encode($payload, $secret, 'HS256');
     }

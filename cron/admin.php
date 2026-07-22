@@ -21,6 +21,11 @@ declare(strict_types=1);
  *   pat:create <subject_user_id> --scopes=kb:read[,…] [--label=…] [--aud=…] [--ttl-days=365]
  *   pat:list [--subject=…]
  *   pat:revoke <token_id> | --subject=…
+ *   site:create <site_id> [name] [--visibility=…] [--tenant=…]
+ *   site:set-visibility <site_id> <public|authenticated|private>
+ *   jwt:key-rotate [--bits=2048]
+ *   jwt:key-list
+ *   jwt:key-retire <kid>
  */
 
 use GrandpaSSOn\Config\ConfigLoader;
@@ -53,6 +58,11 @@ Verbs:
   pat:create <subject_user_id> --scopes=… [--label=…] [--aud=…] [--ttl-days=365]
   pat:list [--subject=…]
   pat:revoke <token_id> | --subject=…
+  site:create <site_id> [name] [--visibility=…] [--tenant=…]
+  site:set-visibility <site_id> <public|authenticated|private>
+  jwt:key-rotate [--bits=2048]
+  jwt:key-list
+  jwt:key-retire <kid>
 
 TXT);
     exit(0);

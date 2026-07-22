@@ -120,7 +120,7 @@ Validate with `POST /oauth/introspect` and revoke with `POST /oauth/revoke` (or 
 
 `/oauth/token` and `/oauth/introspect` use **DB-backed** per-IP rate limits (shared-hosting friendly; no Redis). Other auth routes keep the file-backed gate.
 
-Optional JWT fast-path (R15): set `JWT_ACCESS_TOKEN_ENABLED=true` and `JWT_HMAC_SECRET`. Token responses then include a companion `jwt` field (HS256). The opaque `access_token` remains the revocation authority via introspect; JWTs are trusted only until `exp`.
+Optional JWT fast-path (R15/R16): set `JWT_ACCESS_TOKEN_ENABLED=true`. Prefer rotatable RS256 keys via `php cron/admin.php jwt:key-rotate` and publish public keys at `GET /.well-known/jwks.json`. If no RSA keys exist yet, `JWT_HMAC_SECRET` enables HS256. Token responses include a companion `jwt` field; the opaque `access_token` remains the revocation authority via introspect.
 
 Rotate secrets with `php cron/admin.php client:rotate-secret <client_id>` (old secret stops working immediately).
 
