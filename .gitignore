@@ -1,0 +1,6 @@
+.env
+/dist/
+grandpasson-release.zip
+.phpunit.result.cache
+.phpunit.cache/
+# Note: /vendor is intentionally NOT ignored — shared hosting ships a bundled vendor/

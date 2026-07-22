@@ -3,11 +3,12 @@
 > Companion to [`grandpasson-spec.md`](./grandpasson-spec.md). This plan turns the spec into a
 > sequenced, verifiable task list for the **first deployable release** (v0).
 
-- **Spec version covered:** 1.2
+- **Spec version covered:** 1.3
 - **Target output:** `grandpasson-release.zip` that installs and runs on shared PHP/MySQL hosting.
 - **Development environment:** Docker Compose (per spec §18) — no local PHP/MySQL required.
-- **Token strategy for v0:** **Option A — session-only broker** (spec §17). Broker issues a short-lived
-  auth code exchanged for a session; no JWT, no `/token`, no `/userinfo`, no JWKS in v0.
+- **Token strategy for v0:** **Option A** (spec §17): short-lived broker auth code +
+  `POST /session/exchange` for confidential clients; host-only `AUTHSESSID`; no JWT, no full OIDC
+  `/token`, no `/userinfo`, no JWKS in v0.
 
 ---
 
@@ -19,16 +20,20 @@ MySQL-backed session — all deployable to shared hosting from a Docker-built zi
 
 ### In scope for v0
 
-- Front controller + router and the five **public endpoints**: `GET /login`, `GET /login/{provider}`,
-  `GET /callback/{provider}`, `POST /logout`, `GET /session`.
+- Front controller + router and the **public endpoints**: `GET /login`, `GET /login/{provider}`,
+  `GET /callback/{provider}`, `POST /logout`, `GET /session`, `POST /session/exchange`.
 - All three providers: **Google (OIDC)**, **Microsoft (OIDC)**, **GitHub (OAuth2 + email fetch)**.
+  **Ship bar:** Google live E2E required; Microsoft and GitHub must pass unit/contract tests (live
+  creds optional in CI).
 - Full MySQL schema (spec §8), applied automatically in Docker and via a migration runner in prod.
-- MySQL-backed `SessionHandlerInterface` (spec §7, §14).
-- Broker auth-code exchange between broker and client app (`auth_codes` table), exact redirect-URI match.
-- User provisioning / verified-email auto-link (spec §12).
-- CSRF via `state`, `nonce` for OIDC, PKCE, ID-token validation (spec §3).
-- Audit logging of login success/failure/logout (spec §8 `audit_events`, §13).
-- Cron cleanup scripts + Docker cron service (spec §15).
+- MySQL-backed `SessionHandlerInterface` against the §8 `sessions` table (spec §7 logical metadata
+  lives in `data`).
+- Broker auth-code mint + confidential-client `POST /session/exchange` (hashed at rest, atomic
+  consume, exact `redirect_uri`).
+- User provisioning / verified-email auto-link gated by `ALLOWED_EMAIL_DOMAINS` (spec §12).
+- CSRF via `state` (client + provider), `nonce` for OIDC, PKCE, ID-token validation (spec §3).
+- Audit logging of login success/failure/logout/exchange (spec §8 `audit_events`, §13).
+- Cron cleanup scripts + Docker cron service (spec §15) — after Foundation.
 - Dockerized dev stack + Docker build pipeline producing the release zip (spec §18).
 - Minimal CI: build the artifact and run tests.
 
@@ -36,7 +41,7 @@ MySQL-backed session — all deployable to shared hosting from a Docker-built zi
 
 | Deferred item | Rationale |
 |---|---|
-| `/authorize`, `/token`, `/userinfo`, `.well-known/*`, JWKS (spec §10 "optional") | Only needed when the broker acts as a full IdP for non-session clients (Option B). |
+| `/authorize`, full OIDC `/token`/`/userinfo`, `.well-known/*`, JWKS (spec §10 "optional") | Option B. v0 uses `POST /session/exchange` instead of full IdP token endpoint. |
 | JWT / opaque token issuance (spec §17 Option B) | Session + auth-code covers server-rendered PHP clients. |
 | Admin UI for managing `oauth_clients` | v0 seeds clients via SQL/CLI; UI is post-v0. |
 | Provider-email-change review workflow (spec §5, §12) | v0 flags for review by refusing silent switch + audit log; tooling later. |
@@ -72,15 +77,15 @@ v0 is done when **all** of the following hold:
 
 | Milestone | Goal | Tasks |
 |---|---|---|
-| **M0 — Foundation** | Repo scaffolding, Docker dev stack, schema boots | T0, T1, T-runner, T11 |
-| **M1 — Core plumbing** | Router, config, DB connection, MySQL sessions | T-router, T-config, T-db, T2 |
+| **M0 — Foundation** | Repo scaffolding, Docker dev stack, schema boots | T0, T1, T11 |
+| **M1 — Core plumbing** | Router, config, DB connection, migration runner, MySQL sessions | T-config, T-db, T-runner, T-router, T2 |
 | **M2 — Providers** | Normalized identity from all three providers | T-iface, T3, T4, T5 |
-| **M3 — Flows** | Login → callback → provisioning → session → client redirect | T6, T-provision, T7, T8, T-session-ep |
-| **M4 — Ops & hardening** | Cron cleanup, audit logging, security guards | T9, T10, T-security |
+| **M3 — Flows** | Login → callback → provision → mint code → exchange → logout/session | T6, T-provision, T7, T-exchange, T8, T-session-ep |
+| **M4 — Ops & hardening** | Cron cleanup, audit logging, remaining security helpers | T9, T10, T-security |
 | **M5 — Ship** | Build pipeline, CI, deploy docs, release zip | T12, T-tests, T-ci, T-deploydoc |
 
 Recommended order (extends spec §20):
-`T0 → T1 → T-runner → T11 → T-config → T-db → T-router → T2 → T-iface → (T3 ∥ T4 ∥ T5) → T6 → T-provision → T7 → T8 → T-session-ep → T9 → T10 → T-security → T12 → T-tests → T-ci → T-deploydoc`
+`T0 → T1 → T11 → T-config → T-db → T-runner → T-router → T2 → T-iface → (T3 ∥ T4 ∥ T5) → T6 → T-provision → T7 → T-exchange → T8 → T-session-ep → T9 → T10 → T-security → T12 → T-tests → T-ci → T-deploydoc`
 
 ---
 
@@ -106,26 +111,29 @@ but does not itemize).
     MySQL boot. The two migration directories are kept identical (single source, copied/symlinked).
 
 - **T-runner — Migration runner for production**
-  - Files: `cron/migrate.php` (or `app/Infrastructure/Db/Migrator.php` + a CLI/HTTP entrypoint)
+  - Files: `cron/migrate.php` (or `app/Infrastructure/Db/Migrator.php` + a CLI entrypoint; HTTP only
+    if gated by `MIGRATE_TOKEN` and fail-closed when unset)
   - Dep: T1, T-db
   - Accept: on shared hosting (no `docker-entrypoint-initdb.d`), running the migrator against an empty
-    DB creates all six tables idempotently and records applied migrations. Closes the gap where Docker
-    auto-applies schema but shared hosting has no equivalent.
+    DB creates all six tables idempotently and records applied migrations. Prefer CLI/cPanel cron;
+    if HTTP is exposed, require `MIGRATE_TOKEN`.
 
 - **T11 — Docker dev stack**
   - Files: `docker-compose.yml`, `docker/nginx/{Dockerfile,default.conf}`, `docker/php/{Dockerfile,php.ini}`,
     `docker/mysql/init/*`
   - Dep: T1
-  - Accept: `docker compose up` serves the front controller at `:8080`, PHP-FPM has `pdo_mysql, curl,
-    openssl, json`, MySQL comes up seeded, phpMyAdmin at `:8081` (dev-only).
+  - Accept: `docker compose up` serves the front controller at `:8080` (default `web` Apache+PHP
+    service with `pdo_mysql`), MySQL comes up seeded with six InnoDB tables. Optional
+    `docker compose --profile split` runs nginx+php-fpm; `make tools` starts phpMyAdmin on `:8081`.
 
 ### M1 — Core plumbing
 
 - **T-config — Config loader**
   - Files: `app/Config/config.php`, consumes `.env`
   - Dep: T0
-  - Accept: returns typed config for broker base URL, cookie settings, DB DSN, and per-provider
-    client_id/secret/redirect_uri/scopes; missing required env fails fast with a clear error.
+  - Accept: returns typed config for broker base URL, cookie settings, DB DSN, `ALLOWED_EMAIL_DOMAINS`,
+    `MS_TENANT_ID`, `MIGRATE_TOKEN`, and per-provider client_id/secret/redirect_uri/scopes; missing
+    required env fails fast with a clear error.
 
 - **T-db — Database connection**
   - Files: `app/Infrastructure/Db/Connection.php`
@@ -136,8 +144,8 @@ but does not itemize).
 - **T-router — Front controller + router**
   - Files: `public_html/index.php`, `public_html/.htaccess`, `app/Http/Router.php`
   - Dep: T-config
-  - Accept: routes the five public endpoints to controllers; `.htaccess` rewrites to `index.php` and
-    denies direct access to `/app`; unknown route returns 404.
+  - Accept: routes the public endpoints (including `POST /session/exchange`) to controllers; `.htaccess`
+    rewrites to `index.php` and denies direct access to `/app`; unknown route returns 404.
 
 - **T2 — MySQL session handler**
   - Files: `app/Infrastructure/Session/MysqlSessionHandler.php`
@@ -164,8 +172,9 @@ but does not itemize).
 - **T4 — Microsoft provider (OIDC)**
   - Files: `app/Infrastructure/Providers/MicrosoftProvider.php`
   - Dep: T-iface
-  - Accept: returns normalized identity with `sub, email (or UPN), name`; validates ID token as above;
-    handles the `common` tenant issuer correctly.
+  - Accept: returns normalized identity with `sub, email, email_verified, name`; validates ID token as
+    above; uses `MS_TENANT_ID` discovery (not `/common` unless explicitly configured); never treats raw
+    UPN as verified email for auto-link.
 
 - **T5 — GitHub provider (OAuth2)**
   - Files: `app/Infrastructure/Providers/GithubProvider.php`
@@ -180,22 +189,34 @@ but does not itemize).
   - Dep: T3, T4, T5, T-router
   - Accept: `GET /login` renders provider chooser; `GET /login/{provider}` validates `client_id` +
     `redirect_uri` (exact match against `oauth_clients`), rejects when `oauth_clients.enabled=0`
-    (and audits), stores `state`/`nonce`/PKCE + `return_to` in session, and 302s to the provider with
-    correct params.
+    (and audits), stores provider `state`/`nonce`/PKCE **and** client-supplied `state` + `return_to`
+    in session, and 302s to the provider with correct params. Failure matrix: invalid client/redirect
+    → 400; disabled client → 403 + audit.
 
 - **T7 — Callback controller**
   - Files: `app/Http/Controllers/CallbackController.php`
   - Dep: T6, T2, T-provision
-  - Accept: verifies `state`, exchanges code, validates ID token/nonce (OIDC) or fetches userinfo
-    (GitHub), resolves/creates the local user, creates a MySQL session, mints a single-use `auth_codes`
-    row, and redirects back to the client's registered `redirect_uri` with the broker code.
+  - Accept: verifies provider `state`, exchanges code, validates ID token/nonce (OIDC) or fetches
+    userinfo (GitHub), resolves/creates the local user, creates a MySQL session, mints a single-use
+    auth code (**store `code_hash` only**), and redirects to the client's registered `redirect_uri`
+    with raw `code` **and** the original client `state`. On failure: never redirect with a code;
+    audit + safe error page.
+
+- **T-exchange — Session exchange (broker auth-code redemption)**
+  - Files: `app/Http/Controllers/SessionExchangeController.php`
+  - Dep: T7, T-db
+  - Accept: `POST /session/exchange` requires `code`, `client_id`, `client_secret`, `redirect_uri`;
+    rejects `type=public` and missing `client_secret_hash`; exact `redirect_uri` match against the
+    auth-code row; consumes via one transactional update (`consumed=0` AND unexpired); returns
+    `{id,email,display_name,status}`; audits failures; concurrent double-redeem yields exactly one success.
 
 - **T-provision — User provisioning / identity linking**
   - Files: `app/Domain/{User,LinkedIdentity,OAuthClient}.php`, a `UserProvisioner` service
   - Dep: T-db
-  - Accept: finds user by `(provider, provider_subject)`; else auto-links by **verified** email; else
-    creates a new user; refuses to auto-link on unverified email; syncs `display_name`/`avatar_url` on
-    login; on provider-email change, flags for review (no silent primary-email switch) + audit event.
+  - Accept: finds user by `(provider, provider_subject)`; else auto-links by **verified** email within
+    `ALLOWED_EMAIL_DOMAINS` (empty allowlist refuses auto-create outside `APP_ENV=dev`); else creates
+    a new user; refuses unverified email / raw UPN; syncs `display_name`/`avatar_url` on login; on
+    provider-email change, flags for review (no silent primary-email switch) + audit event.
 
 - **T8 — Logout controller**
   - Files: `app/Http/Controllers/LogoutController.php`
@@ -206,29 +227,30 @@ but does not itemize).
   - Files: `app/Http/Controllers/SessionController.php`
   - Dep: T2, T7
   - Accept: `GET /session` returns the current authenticated user (id, email, display_name, status) as
-    JSON for authenticated requests, and 401 otherwise — the endpoint a client app calls to confirm login.
+    JSON for cookie-authenticated requests, and 401 otherwise — broker/same-host introspection only;
+    cross-host clients use `T-exchange`.
 
 ### M4 — Ops & hardening
 
 - **T9 — Cron cleanup**
   - Files: `cron/cleanup_sessions.php`, `cron/cleanup_auth_codes.php`, `docker/` cron wiring
-  - Dep: T1, T-db
+  - Dep: T1, T-db, T11
   - Accept: deletes only rows past `expires_at` (and consumed auth codes); runs identically via CLI on
     shared hosting and in the Docker `cron` service on the spec §15 schedule.
 
 - **T10 — Audit logging**
   - Files: touches `app/Http/Controllers/*.php` + an `AuditLogger` helper
-  - Dep: T7, T8
-  - Accept: every login success, login failure, and logout writes an `audit_events` row with
-    `event_type`, `provider`, hashed IP, timestamp; no tokens/secrets recorded.
+  - Dep: T7, T8, T-exchange
+  - Accept: every login success, login failure, logout, and exchange success/failure writes an
+    `audit_events` row with `event_type`, `provider`, hashed IP, timestamp; no tokens/secrets recorded.
 
-- **T-security — Security guards**
+- **T-security — Security helpers (cross-cutting leftovers)**
   - Files: `app/Support/Csrf.php`, `app/Support/Http.php`, rate-limit helper
-  - Dep: T6, T7
-  - Accept: `state`/PKCE enforced on every flow; exact redirect-URI matching (no prefix); `return_to`
-    validated against registered URIs; disabled `oauth_clients` rejected at login; basic per-IP throttle
-    on `/login` and `/callback`; disabled local users are denied even when upstream login succeeds;
-    secrets read only from env outside webroot.
+  - Dep: T6, T7, T-exchange
+  - Accept: shared helpers for PKCE/state storage, HTTP utilities, and basic per-IP throttle on
+    `/login`, `/callback`, and `/session/exchange`; secrets read only from env outside webroot.
+    Core checks (exact redirect, disabled client/user, client `state` echo, confidential exchange)
+    are already required in T6/T7/T-exchange acceptance — do not defer them here.
 
 ### M5 — Ship
 
@@ -277,7 +299,8 @@ following v0-critical additions explicit so nothing blocks a real deploy:
    embed linking rules directly.
 5. **`/session` endpoint controller** (`T-session-ep`) — listed as a public endpoint (spec §10) and named
    in §9 but missing from §20.
-6. **Security guards + test suite + CI + deploy doc** (`T-security`, `T-tests`, `T-ci`, `T-deploydoc`) —
+6. **`POST /session/exchange`** (`T-exchange`) — closes the cross-host auth-code loop without Option B.
+7. **Security helpers + test suite + CI + deploy doc** (`T-security`, `T-tests`, `T-ci`, `T-deploydoc`) —
    required by the Definition of Done and the deployment checklist.
 
 ---
@@ -292,14 +315,15 @@ following v0-critical additions explicit so nothing blocks a real deploy:
 | Provider ID-token validation implemented loosely | Auth bypass | Use `firebase/php-jwt` + discovery JWKS; unit-test iss/aud/exp/nonce failures. |
 | Session cookie not `Secure` behind a proxy | Session theft | Force HTTPS + secure cookie via config; document AutoSSL step. |
 | Two copies of migration SQL drift | Docker and prod schemas diverge | Single source; build/CI diffs the two migration directories. |
+| Auth-code double redeem | Session fixation / account confusion | Atomic consume predicate; concurrent exchange test in T-exchange. |
 
 ---
 
 ## 7. Suggested first PRs (execution slices)
 
-1. **Foundation PR** — T0, T1, T11, T-runner: `docker compose up` boots with schema; empty front controller responds.
-2. **Plumbing PR** — T-config, T-db, T-router, T2: routed requests + working MySQL sessions.
+1. **Foundation PR** — T0, T1, T11: `docker compose up` boots with schema; empty front controller responds.
+2. **Plumbing PR** — T-config, T-db, T-runner, T-router, T2: routed requests, migrator, MySQL sessions.
 3. **Providers PR** — T-iface, T3, T4, T5 with unit tests.
-4. **Flow PR** — T6, T-provision, T7, T8, T-session-ep: full end-to-end login against Google.
+4. **Flow PR** — T6, T-provision, T7, T-exchange, T8, T-session-ep: full end-to-end login against Google.
 5. **Ops PR** — T9, T10, T-security.
 6. **Ship PR** — T12, T-tests round-out, T-ci, T-deploydoc: green CI + release zip.

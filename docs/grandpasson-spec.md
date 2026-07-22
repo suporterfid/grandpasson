@@ -2,7 +2,7 @@
 
 > "SSO that runs where your grandpa's cPanel still lives."
 
-Version: 1.2
+Version: 1.3
 License: MIT
 Target runtime environment: Shared PHP/MySQL hosting (cPanel-style, no SSH/root, no persistent daemons, no Redis/queues)
 Target development environment: Dockerized (Docker Compose), fully reproducible regardless of host OS
@@ -101,15 +101,15 @@ architecture:
 ### High-Level Flow
 
 ```text
-Browser -> App -> GrandpaSSOn /login
+Browser -> App -> GrandpaSSOn /login/{provider}?client_id&redirect_uri&state
 GrandpaSSOn -> Provider /authorize
 Provider -> GrandpaSSOn /callback?code&state
 GrandpaSSOn -> Provider /token
 GrandpaSSOn -> Provider /userinfo (or validate id_token)
 GrandpaSSOn -> MySQL (link/provision user)
-GrandpaSSOn -> create MySQL-backed session
-GrandpaSSOn -> App callback with broker code
-App -> GrandpaSSOn /session or /token
+GrandpaSSOn -> create MySQL-backed AUTHSESSID session
+GrandpaSSOn -> App callback with broker code + client state
+App -> GrandpaSSOn POST /session/exchange (code, client_id, client_secret, redirect_uri)
 App -> authenticated user session
 ```
 
@@ -140,8 +140,11 @@ providers:
   microsoft:
     protocol: oidc
     scopes: [openid, profile, email]
-    required_claims: [sub, email_or_upn, name]
-    discovery: https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration
+    # Prefer verified email for auto-link; UPN alone is never treated as verified email.
+    required_claims: [sub, email, email_verified, name]
+    # Default: single-tenant via MS_TENANT_ID. Use tenant=common only when explicitly configured.
+    discovery: https://login.microsoftonline.com/{tenant}/v2.0/.well-known/openid-configuration
+    tenant_env: MS_TENANT_ID
 
   github:
     protocol: oauth2
@@ -213,9 +216,11 @@ Rules:
 
 ## 7. Session Model (MySQL-backed)
 
+The **authoritative DDL** for persistence is the `sessions` table in §8 (`id`, `user_id`, `data`, `last_access`, `expires_at`), which backs PHP's `SessionHandlerInterface`. The fields below are **logical session metadata** stored inside the `data` MEDIUMBLOB (or derived at write time) — they are not competing SQL columns.
+
 ```yaml
-session:
-  id: uuid
+# Logical metadata inside sessions.data (not DDL)
+session_logical:
   user_id: uuid
   client_id: string|null
   created_at: datetime
@@ -227,9 +232,9 @@ session:
 ```
 
 Rules:
-- Sessions are stored server-side in MySQL (InnoDB), never relying on local filesystem session paths, which are unreliable across shared-hosting process isolation and restarts.
+- Sessions are stored server-side in MySQL (InnoDB) via §8, never relying on local filesystem session paths, which are unreliable across shared-hosting process isolation and restarts.
 - InnoDB is required over MyISAM because InnoDB provides row-level locking, avoiding contention when many concurrent requests read/write session rows.
-- Session cookie flags: `HttpOnly`, `Secure`, `SameSite=Lax` (or stricter).
+- Session cookie flags: `HttpOnly`, `Secure`, `SameSite=Lax` (or stricter). Cookie is host-only (no parent `Domain`); cross-host apps use `POST /session/exchange`, not shared cookies.
 - Regenerate session ID after successful login.
 - Only write session rows when data actually changes, to minimize write load on shared MySQL.
 - Logout destroys the MySQL session row and clears the cookie.
@@ -281,8 +286,9 @@ CREATE TABLE sessions (
   expires_at INT UNSIGNED NOT NULL
 ) ENGINE=InnoDB;
 
+-- Raw auth codes are returned once in the redirect query string; only the hash is stored.
 CREATE TABLE auth_codes (
-  code CHAR(64) NOT NULL PRIMARY KEY,
+  code_hash CHAR(64) NOT NULL PRIMARY KEY,
   user_id CHAR(36) NOT NULL,
   client_id VARCHAR(100) NOT NULL,
   redirect_uri VARCHAR(500) NOT NULL,
@@ -321,6 +327,7 @@ grandpasson/
       CallbackController.php
       LogoutController.php
       SessionController.php
+      SessionExchangeController.php
   Domain/
     User.php
     LinkedIdentity.php
@@ -392,6 +399,7 @@ public_endpoints:
   - GET /callback/{provider}
   - POST /logout
   - GET /session
+  - POST /session/exchange   # confidential-client broker auth-code redemption (v0)
 
 optional_oidc_like_endpoints:
   - GET /authorize
@@ -401,7 +409,7 @@ optional_oidc_like_endpoints:
   - GET /.well-known/jwks.json
 ```
 
-Minimal mode: internal apps rely only on broker session exchange via `/login` and `/callback`. The optional OIDC-like endpoints are for when GrandpaSSOn itself needs to act as a stable identity provider for many client apps.
+**v0 trust path:** after `/callback/{provider}`, the broker redirects the browser to the client with a short-lived broker `code` (+ echoed client `state`). The **client server** redeems that code via `POST /session/exchange` using `client_id`, `client_secret`, and the exact `redirect_uri` from issuance. This is not full OIDC `/token` (no JWT, no refresh). `GET /session` is cookie-authenticated introspection of `AUTHSESSID` only (same-host / broker browser session). Optional OIDC-like endpoints (Option B) remain out of v0.
 
 ---
 
@@ -435,7 +443,26 @@ Validation checklist on callback:
 - Fetch `userinfo` (or GitHub API) if claims are incomplete (e.g., missing email).
 - Resolve existing `linked_identity` or create new user + linked identity.
 - Create session row in MySQL, set session cookie.
-- Redirect back to the requesting app with an auth code or session confirmation.
+- Mint a single-use broker auth code (store only `code_hash`); redirect to the client with raw `code` and the original client `state`.
+- Client redeems via `POST /session/exchange` (confidential clients only; exact `redirect_uri`; atomic consume).
+
+### Broker auth-code exchange (`POST /session/exchange`)
+
+```yaml
+request:
+  POST /session/exchange:
+    params:
+      code: required
+      client_id: required
+      client_secret: required
+      redirect_uri: required   # must exactly match the URI stored on the auth_codes row
+rules:
+  reject_public_clients: true
+  reject_missing_client_secret_hash: true
+  exact_redirect_uri_match: true
+  atomic_consume: true   # UPDATE ... WHERE consumed=0 AND expires_at > now; one success only
+  response: { id, email, display_name, status }
+```
 
 ---
 
@@ -443,20 +470,21 @@ Validation checklist on callback:
 
 ```yaml
 provisioning:
-  auto_create_user: true
+  auto_create_user: true          # gated by ALLOWED_EMAIL_DOMAINS outside APP_ENV=dev
   auto_link_verified_email: true
   require_verified_email: true
+  allowed_email_domains_env: ALLOWED_EMAIL_DOMAINS  # comma-separated; empty in non-dev = refuse auto-create
   update_profile_on_login: true
   sync_fields:
     - display_name
     - avatar_url
-    - primary_email
+    # primary_email is NOT synced silently — provider email change requires review
 ```
 
 Rules:
-- Create a new user on first login if no existing link is found.
-- Link to an existing user only by verified email.
-- On subsequent logins, sync display name and avatar automatically.
+- Create a new user on first login if no existing link is found **and** the verified email passes the domain allowlist (or `APP_ENV=dev` with empty allowlist for local demos).
+- Link to an existing user only by verified email. Never treat Microsoft UPN alone as verified email.
+- On subsequent logins, sync display name and avatar automatically — never silently switch `primary_email`.
 - Manual review required if provider email changes or is unverified.
 
 ---
@@ -468,10 +496,13 @@ Rules:
 - Enforce HTTPS everywhere, including all redirect URIs (most shared hosts provide free SSL via AutoSSL).
 - Validate ID token signature and claims for all OIDC providers.
 - Avoid storing provider access tokens unless downstream API access is genuinely required; if stored, encrypt at rest and rotate.
-- Rate-limit `/login` and `/callback` endpoints to reduce abuse.
+- Rate-limit `/login`, `/callback`, and `/session/exchange` endpoints to reduce abuse.
 - Log authentication events to `audit_events`, redacting tokens and secrets.
 - Support local account disable/block even when upstream provider login succeeds.
+- Reject disabled `oauth_clients` at login; reject public / secretless clients at `/session/exchange`.
+- Store only hashes of broker auth codes at rest; consume codes atomically.
 - Docker dev secrets (`.env` used inside containers) must never be the same values as production secrets, and must never be committed.
+- Provisioning auto-create is gated by `ALLOWED_EMAIL_DOMAINS` outside `APP_ENV=dev`.
 
 ---
 
@@ -526,7 +557,7 @@ dependencies_policy:
     - league/oauth2-client
     - league/oauth2-google
     - league/oauth2-github
-    - firebase/php-jwt
+    - firebase/php-jwt   # ^7.x
   avoid:
     - anything_requiring_pecl_extensions_not_default_enabled
     - redis_client_libraries
@@ -539,10 +570,11 @@ Since SSH/Composer CLI access cannot be assumed on shared hosting, all dependenc
 
 ## 17. Token Strategy Options
 
-**Option A — Session-only broker** (recommended default for minimalism):
-- Best for classic server-rendered PHP apps on the same or related domains.
-- App trusts the broker session/cookie directly or via a short-lived auth code.
-- Simplest to implement and maintain on shared hosting.
+**Option A — Session-only broker** (recommended default for minimalism / **v0**):
+- Broker holds `AUTHSESSID` (host-only cookie). Cross-host client apps do **not** share that cookie.
+- Broker issues a short-lived auth code; confidential clients redeem it via `POST /session/exchange`.
+- No JWT, no refresh tokens, no JWKS in Option A.
+- Simplest path that still supports the cross-host examples in §19.
 
 **Option B — Broker issues JWT/opaque tokens**:
 - Better for APIs, decoupled frontends, or non-PHP client apps.
@@ -715,8 +747,9 @@ providers:
   microsoft:
     client_id: env(MS_CLIENT_ID)
     client_secret: env(MS_CLIENT_SECRET)
+    tenant_id: env(MS_TENANT_ID)   # required for single-tenant; set to "common" only when intentional
     redirect_uri: https://auth.example.com/callback/microsoft
-    discovery: https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration
+    discovery: https://login.microsoftonline.com/{tenant_id}/v2.0/.well-known/openid-configuration
     scopes: [openid, profile, email]
 
   github:

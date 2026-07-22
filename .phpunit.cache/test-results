@@ -1,0 +1,1 @@
+{"version":2,"defects":[],"times":{"GrandpaSSOn\\Tests\\Schema\\MigrationFilesTest::testBothTreesContainSixMigrationFiles":0.001,"GrandpaSSOn\\Tests\\Schema\\MigrationFilesTest::testMigrationTreesAreByteIdentical":0,"GrandpaSSOn\\Tests\\Schema\\MigrationFilesTest::testEveryTableUsesInnoDb":0,"GrandpaSSOn\\Tests\\Schema\\MigrationFilesTest::testAuthCodesStoreHashNotRawCode":0}}
