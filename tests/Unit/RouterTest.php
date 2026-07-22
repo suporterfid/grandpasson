@@ -96,6 +96,9 @@ final class RouterTest extends TestCase
         $this->assertContains('GET /site/{site_id}/login/{provider}', $paths);
         $this->assertContains('GET /site/{site_id}/session', $paths);
         $this->assertContains('GET /.well-known/jwks.json', $paths);
+        $this->assertContains('GET /me/pats', $paths);
+        $this->assertContains('POST /me/pats', $paths);
+        $this->assertContains('POST /me/pats/{id}/revoke', $paths);
     }
 
     public function testOauthControllersApplyRateLimitGate(): void

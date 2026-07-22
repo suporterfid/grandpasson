@@ -16,6 +16,7 @@ use GrandpaSSOn\Http\Controllers\OAuthTokenController;
 use GrandpaSSOn\Http\Controllers\SessionController;
 use GrandpaSSOn\Http\Controllers\SessionExchangeController;
 use GrandpaSSOn\Http\Controllers\SiteReaderController;
+use GrandpaSSOn\Http\Controllers\UserPatController;
 
 /**
  * Single source of truth for front-controller route wiring (v0 + v1 P0).
@@ -42,6 +43,9 @@ final class AppRoutes
             ['POST', '/oauth/revoke', OAuthRevokeController::class, 'revoke'],
             ['GET', '/admin', AdminUiController::class, 'index'],
             ['POST', '/admin/api', AdminUiController::class, 'api'],
+            ['GET', '/me/pats', UserPatController::class, 'list'],
+            ['POST', '/me/pats', UserPatController::class, 'create'],
+            ['POST', '/me/pats/{id}/revoke', UserPatController::class, 'revoke'],
             ['GET', '/site/{site_id}/login/{provider}', SiteReaderController::class, 'login'],
             ['GET', '/site/{site_id}/session', SiteReaderController::class, 'session'],
             ['POST', '/site/{site_id}/logout', SiteReaderController::class, 'logout'],
