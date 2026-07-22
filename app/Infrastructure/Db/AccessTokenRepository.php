@@ -86,10 +86,40 @@ final class AccessTokenRepository
         return $row === false ? null : $this->map($row);
     }
 
+    /**
+     * Atomically mark last_used_at only if the token is still unrevoked and unexpired.
+     * Returns false if the row is inactive (or missing).
+     */
+    public function touchLastUsedIfActive(string $id): bool
+    {
+        $now = gmdate('Y-m-d H:i:s');
+        $stmt = $this->pdo->prepare(
+            'UPDATE access_tokens
+             SET last_used_at = :touched_at
+             WHERE id = :id
+               AND revoked_at IS NULL
+               AND expires_at > :expires_gate'
+        );
+        $stmt->execute([
+            'touched_at' => $now,
+            'id' => $id,
+            'expires_gate' => $now,
+        ]);
+
+        return $stmt->rowCount() === 1;
+    }
+
     public function touchLastUsed(string $id): void
     {
+        $this->touchLastUsedIfActive($id);
+    }
+
+    public function revokeById(string $id): void
+    {
         $stmt = $this->pdo->prepare(
-            'UPDATE access_tokens SET last_used_at = :now WHERE id = :id'
+            'UPDATE access_tokens
+             SET revoked_at = :now
+             WHERE id = :id AND revoked_at IS NULL'
         );
         $stmt->execute([
             'now' => gmdate('Y-m-d H:i:s'),

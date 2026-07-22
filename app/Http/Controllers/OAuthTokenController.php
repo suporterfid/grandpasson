@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace GrandpaSSOn\Http\Controllers;
 
 use GrandpaSSOn\Infrastructure\Audit\AuditLogger;
-use GrandpaSSOn\Infrastructure\Auth\ClientSecretHasher;
+use GrandpaSSOn\Infrastructure\Auth\ServiceClientAuthenticator;
 use GrandpaSSOn\Infrastructure\Db\AccessTokenRepository;
 use GrandpaSSOn\Infrastructure\Db\Connection;
 use GrandpaSSOn\Infrastructure\Db\ServiceClientRepository;
@@ -33,7 +33,7 @@ final class OAuthTokenController
 
         $pdo = Connection::get($config['db']);
         $audit = new AuditLogger($pdo);
-        $clients = new ServiceClientRepository($pdo);
+        $auth = new ServiceClientAuthenticator(new ServiceClientRepository($pdo));
 
         if ($grantType !== 'client_credentials') {
             $audit->record(
@@ -52,31 +52,14 @@ final class OAuthTokenController
             return;
         }
 
-        if ($clientId === '' || $clientSecret === '') {
+        $client = $auth->authenticate($clientId, $clientSecret);
+        if ($client === null) {
             $audit->record(
                 action: 'token.issue',
                 result: AuditLogger::RESULT_FAILURE,
                 actorType: AuditLogger::ACTOR_SERVICE,
-                ip: Http::clientIp(),
-            );
-            Http::json(401, ['error' => 'invalid_client']);
-
-            return;
-        }
-
-        $client = $clients->findByClientId($clientId);
-        $hash = ($client !== null && $client->clientSecretHash !== '')
-            ? $client->clientSecretHash
-            : self::dummySecretHash();
-        $secretOk = ClientSecretHasher::verify($clientSecret, $hash);
-
-        if ($client === null || !$client->enabled || !$secretOk) {
-            $audit->record(
-                action: 'token.issue',
-                result: AuditLogger::RESULT_FAILURE,
-                actorType: AuditLogger::ACTOR_SERVICE,
-                actorId: $clientId,
-                clientId: $clientId,
+                actorId: $clientId !== '' ? $clientId : null,
+                clientId: $clientId !== '' ? $clientId : null,
                 ip: Http::clientIp(),
             );
             Http::json(401, ['error' => 'invalid_client']);
@@ -151,16 +134,5 @@ final class OAuthTokenController
             'scope' => implode(' ', $requested),
             'aud' => $aud,
         ]);
-    }
-
-    /** Same algorithm/cost as ClientSecretHasher for unknown-client verify path. */
-    private static function dummySecretHash(): string
-    {
-        static $hash = null;
-        if ($hash === null) {
-            $hash = ClientSecretHasher::hash('grandpasson-dummy-secret-not-a-real-client');
-        }
-
-        return $hash;
     }
 }
