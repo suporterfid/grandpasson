@@ -97,6 +97,19 @@ final class AccessTokenRepository
         ]);
     }
 
+    public function revokeById(string $id): void
+    {
+        $stmt = $this->pdo->prepare(
+            'UPDATE access_tokens
+             SET revoked_at = :now
+             WHERE id = :id AND revoked_at IS NULL'
+        );
+        $stmt->execute([
+            'now' => gmdate('Y-m-d H:i:s'),
+            'id' => $id,
+        ]);
+    }
+
     /** @param array<string, mixed> $row */
     private function map(array $row): AccessToken
     {

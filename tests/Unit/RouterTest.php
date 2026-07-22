@@ -6,6 +6,7 @@ namespace GrandpaSSOn\Tests\Unit;
 
 use GrandpaSSOn\Http\Controllers\HealthController;
 use GrandpaSSOn\Http\Controllers\LoginController;
+use GrandpaSSOn\Http\Controllers\OAuthIntrospectController;
 use GrandpaSSOn\Http\Controllers\OAuthTokenController;
 use GrandpaSSOn\Http\Controllers\SessionExchangeController;
 use GrandpaSSOn\Http\Router;
@@ -32,6 +33,11 @@ final class RouterTest extends TestCase
         $this->assertNotNull($token);
         $this->assertSame(OAuthTokenController::class, $token[0]);
         $this->assertSame('token', $token[1]);
+
+        $introspect = $router->match('POST', '/oauth/introspect');
+        $this->assertNotNull($introspect);
+        $this->assertSame(OAuthIntrospectController::class, $introspect[0]);
+        $this->assertSame('introspect', $introspect[1]);
     }
 
     public function testStripsQueryStringAndTrailingSlash(): void
@@ -71,6 +77,7 @@ final class RouterTest extends TestCase
         $router->get('/session', \GrandpaSSOn\Http\Controllers\SessionController::class, 'show');
         $router->post('/session/exchange', SessionExchangeController::class, 'exchange');
         $router->post('/oauth/token', OAuthTokenController::class, 'token');
+        $router->post('/oauth/introspect', OAuthIntrospectController::class, 'introspect');
 
         return $router;
     }
