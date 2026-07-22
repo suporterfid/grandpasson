@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace GrandpaSSOn\Tests\Integration;
 
+use GrandpaSSOn\Infrastructure\Cleanup\AccessTokenCleanup;
+use GrandpaSSOn\Infrastructure\Cleanup\AuditLogCleanup;
 use GrandpaSSOn\Infrastructure\Cleanup\AuthCodeCleanup;
 use GrandpaSSOn\Infrastructure\Cleanup\SessionCleanup;
 use GrandpaSSOn\Infrastructure\Db\Connection;
+use GrandpaSSOn\Infrastructure\Db\ServiceClientRepository;
 use PDO;
 use PHPUnit\Framework\TestCase;
 
@@ -72,6 +75,64 @@ final class CleanupJobsTest extends TestCase
 
         $hashes = $this->pdo->query('SELECT code_hash FROM auth_codes')->fetchAll(PDO::FETCH_COLUMN);
         $this->assertSame(['hash-live'], $hashes);
+    }
+
+    public function testAccessTokenCleanupDeletesExpiredAndAgedRevokedOnly(): void
+    {
+        (new ServiceClientRepository($this->pdo))->create(
+            'svc-gc',
+            'GC',
+            'secret',
+            ['kb:read'],
+            null,
+            true,
+        );
+        $now = time();
+        $aliveExp = gmdate('Y-m-d H:i:s', $now + 600);
+        $deadExp = gmdate('Y-m-d H:i:s', $now - 10);
+        $recentRevoke = gmdate('Y-m-d H:i:s', $now - 60);
+        $oldRevoke = gmdate('Y-m-d H:i:s', $now - 700000);
+        $created = gmdate('Y-m-d H:i:s', $now - 1000);
+
+        $this->pdo->exec("INSERT INTO access_tokens
+            (id, token_hash, client_id, subject_user_id, scope, aud, tenant_id, expires_at, revoked_at, created_at, last_used_at) VALUES
+            ('t-alive', '" . str_repeat('a', 64) . "', 'svc-gc', NULL, 'kb:read', NULL, NULL, '{$aliveExp}', NULL, '{$created}', NULL),
+            ('t-expired', '" . str_repeat('b', 64) . "', 'svc-gc', NULL, 'kb:read', NULL, NULL, '{$deadExp}', NULL, '{$created}', NULL),
+            ('t-rev-new', '" . str_repeat('c', 64) . "', 'svc-gc', NULL, 'kb:read', NULL, NULL, '{$aliveExp}', '{$recentRevoke}', '{$created}', NULL),
+            ('t-rev-old', '" . str_repeat('d', 64) . "', 'svc-gc', NULL, 'kb:read', NULL, NULL, '{$aliveExp}', '{$oldRevoke}', '{$created}', NULL)");
+
+        $deleted = (new AccessTokenCleanup($this->pdo))->run($now, 604800);
+        $this->assertSame(2, $deleted);
+
+        $ids = $this->pdo->query('SELECT id FROM access_tokens ORDER BY id')->fetchAll(PDO::FETCH_COLUMN);
+        $this->assertSame(['t-alive', 't-rev-new'], $ids);
+
+        $again = (new AccessTokenCleanup($this->pdo))->run($now, 604800);
+        $this->assertSame(0, $again);
+    }
+
+    public function testAuditLogCleanupRespectsRetentionBoundary(): void
+    {
+        $now = time();
+        $keep = gmdate('Y-m-d H:i:s', $now - (10 * 86400));
+        $drop = gmdate('Y-m-d H:i:s', $now - (40 * 86400));
+
+        $this->pdo->exec("INSERT INTO audit_log
+            (actor_type, actor_id, action, target, client_id, ip_hash, user_agent, result, created_at) VALUES
+            ('system', NULL, 'keep.event', NULL, NULL, NULL, NULL, 'success', '{$keep}'),
+            ('system', NULL, 'drop.event', NULL, NULL, NULL, NULL, 'success', '{$drop}')");
+        $this->pdo->exec("INSERT INTO audit_events (user_id, event_type, provider, ip_hash, created_at) VALUES
+            (NULL, 'keep.legacy', NULL, NULL, '{$keep}'),
+            (NULL, 'drop.legacy', NULL, NULL, '{$drop}')");
+
+        $counts = (new AuditLogCleanup($this->pdo))->run(30, $now);
+        $this->assertSame(1, $counts['audit_log']);
+        $this->assertSame(1, $counts['audit_events']);
+
+        $actions = $this->pdo->query('SELECT action FROM audit_log')->fetchAll(PDO::FETCH_COLUMN);
+        $this->assertSame(['keep.event'], $actions);
+        $types = $this->pdo->query('SELECT event_type FROM audit_events')->fetchAll(PDO::FETCH_COLUMN);
+        $this->assertSame(['keep.legacy'], $types);
     }
 
     private function rootPdo(): PDO

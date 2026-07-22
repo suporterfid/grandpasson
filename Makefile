@@ -43,3 +43,9 @@ cleanup-sessions:
 
 cleanup-auth-codes:
 	php cron/cleanup_auth_codes.php
+
+cleanup-access-tokens:
+	php cron/cleanup_access_tokens.php
+
+cleanup-audit-log:
+	php cron/cleanup_audit_log.php

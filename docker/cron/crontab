@@ -4,3 +4,6 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 # /etc/cron.d format requires a username column.
 */15 * * * * root cd /var/www/html && /usr/local/bin/php cron/cleanup_sessions.php >> /var/log/cron.log 2>&1
 */5 * * * * root cd /var/www/html && /usr/local/bin/php cron/cleanup_auth_codes.php >> /var/log/cron.log 2>&1
+# v1 machine tokens + audit retention (spec §5 R9 / U10)
+0 * * * * root cd /var/www/html && /usr/local/bin/php cron/cleanup_access_tokens.php >> /var/log/cron.log 2>&1
+30 3 * * * root cd /var/www/html && /usr/local/bin/php cron/cleanup_audit_log.php >> /var/log/cron.log 2>&1
