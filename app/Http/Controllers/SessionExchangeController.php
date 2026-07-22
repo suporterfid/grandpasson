@@ -6,6 +6,7 @@ namespace GrandpaSSOn\Http\Controllers;
 
 use GrandpaSSOn\Infrastructure\Audit\AuditLogger;
 use GrandpaSSOn\Infrastructure\Auth\AuthCodeService;
+use GrandpaSSOn\Infrastructure\Auth\OAuthClientAuthenticator;
 use GrandpaSSOn\Infrastructure\Auth\SessionClaimsResolver;
 use GrandpaSSOn\Infrastructure\Db\Connection;
 use GrandpaSSOn\Infrastructure\Db\OAuthClientRepository;
@@ -42,20 +43,9 @@ final class SessionExchangeController
             return;
         }
 
-        $client = (new OAuthClientRepository($pdo))->findByClientId($clientId);
-        if ($client === null || !$client->enabled) {
-            $audit->log('exchange.failure', null, null, Http::clientIp());
-            Http::json(401, ['error' => 'invalid_client']);
-
-            return;
-        }
-        if (!$client->isConfidential() || $client->clientSecretHash === null || $client->clientSecretHash === '') {
-            $audit->log('exchange.failure', null, null, Http::clientIp());
-            Http::json(401, ['error' => 'unauthorized_client']);
-
-            return;
-        }
-        if (!password_verify($clientSecret, $client->clientSecretHash)) {
+        $client = (new OAuthClientAuthenticator(new OAuthClientRepository($pdo)))
+            ->authenticateConfidential($clientId, $clientSecret);
+        if ($client === null) {
             $audit->log('exchange.failure', null, null, Http::clientIp());
             Http::json(401, ['error' => 'invalid_client']);
 
