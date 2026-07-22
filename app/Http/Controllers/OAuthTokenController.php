@@ -15,9 +15,6 @@ use GrandpaSSOn\Support\RateLimitGate;
 
 final class OAuthTokenController
 {
-    /** bcrypt hash of a never-used secret — for constant-time verify when client is missing. */
-    private const DUMMY_SECRET_HASH = '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi';
-
     /** @param array<string, mixed> $config @param array<string, string> $params */
     public function token(array $config, array $params = []): void
     {
@@ -70,7 +67,7 @@ final class OAuthTokenController
         $client = $clients->findByClientId($clientId);
         $hash = ($client !== null && $client->clientSecretHash !== '')
             ? $client->clientSecretHash
-            : self::DUMMY_SECRET_HASH;
+            : self::dummySecretHash();
         $secretOk = ClientSecretHasher::verify($clientSecret, $hash);
 
         if ($client === null || !$client->enabled || !$secretOk) {
@@ -106,6 +103,28 @@ final class OAuthTokenController
             return;
         }
 
+        if (
+            $audience !== ''
+            && $client->defaultAudience !== null
+            && $audience !== $client->defaultAudience
+        ) {
+            $audit->record(
+                action: 'token.issue',
+                result: AuditLogger::RESULT_FAILURE,
+                actorType: AuditLogger::ACTOR_SERVICE,
+                actorId: $clientId,
+                clientId: $clientId,
+                target: 'invalid_audience',
+                ip: Http::clientIp(),
+            );
+            Http::json(400, [
+                'error' => 'invalid_request',
+                'error_description' => 'audience is not allowed for this client',
+            ]);
+
+            return;
+        }
+
         $aud = $audience !== '' ? $audience : $client->defaultAudience;
         $ttl = AccessTokenTtl::resolve($config['tokens'] ?? []);
         $issued = (new AccessTokenRepository($pdo))->issue(
@@ -132,5 +151,16 @@ final class OAuthTokenController
             'scope' => implode(' ', $requested),
             'aud' => $aud,
         ]);
+    }
+
+    /** Same algorithm/cost as ClientSecretHasher for unknown-client verify path. */
+    private static function dummySecretHash(): string
+    {
+        static $hash = null;
+        if ($hash === null) {
+            $hash = ClientSecretHasher::hash('grandpasson-dummy-secret-not-a-real-client');
+        }
+
+        return $hash;
     }
 }

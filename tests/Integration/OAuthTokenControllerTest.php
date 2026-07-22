@@ -143,6 +143,21 @@ final class OAuthTokenControllerTest extends TestCase
         $this->assertSame(['error' => 'invalid_client'], $payload);
     }
 
+    public function testRejectsAudienceOutsideClientDefault(): void
+    {
+        $payload = $this->postToken([
+            'grant_type' => 'client_credentials',
+            'client_id' => 'svc-notes',
+            'client_secret' => 'correct-secret',
+            'scope' => 'kb:read',
+            'audience' => 'workspace/victim',
+        ]);
+
+        $this->assertSame(400, http_response_code());
+        $this->assertSame('invalid_request', $payload['error']);
+        $this->assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM access_tokens')->fetchColumn());
+    }
+
     /** @param array<string, string> $fields @return array<string, mixed> */
     private function postToken(array $fields): array
     {
