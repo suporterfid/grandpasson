@@ -70,7 +70,22 @@ final class OAuthIntrospectController
             return;
         }
 
-        $tokens->touchLastUsed($record->id);
+        // Re-check revoked/expired under UPDATE so concurrent revoke wins (S5).
+        if (!$tokens->touchLastUsedIfActive($record->id)) {
+            $audit->record(
+                action: 'token.introspect',
+                result: AuditLogger::RESULT_FAILURE,
+                actorType: AuditLogger::ACTOR_SERVICE,
+                actorId: $caller->clientId,
+                clientId: $caller->clientId,
+                target: 'inactive',
+                ip: Http::clientIp(),
+            );
+            Http::json(200, ['active' => false]);
+
+            return;
+        }
+
         $exp = strtotime($record->expiresAt . ' UTC');
         if ($exp === false) {
             Http::json(200, ['active' => false]);
