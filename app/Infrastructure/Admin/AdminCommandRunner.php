@@ -49,11 +49,42 @@ final class AdminCommandRunner
     }
 
     /**
+     * Canonical admin verb list (CLI + HTML UI must stay in sync).
+     *
+     * @return list<string>
+     */
+    public static function verbs(): array
+    {
+        return [
+            'tenant:create',
+            'tenant:add-member',
+            'group:create',
+            'group:add-member',
+            'client:create-service',
+            'client:rotate-secret',
+            'token:list',
+            'token:revoke',
+            'pat:create',
+            'pat:list',
+            'pat:revoke',
+            'site:create',
+            'site:set-visibility',
+            'jwt:key-rotate',
+            'jwt:key-list',
+            'jwt:key-retire',
+        ];
+    }
+
+    /**
      * @param list<string> $argv Subcommand args after verb (e.g. slug name)
      * @return array<string, mixed>
      */
     public function run(string $verb, array $argv, array $flags = []): array
     {
+        if (!in_array($verb, self::verbs(), true)) {
+            throw new \InvalidArgumentException('Unknown verb: ' . $verb);
+        }
+
         return match ($verb) {
             'tenant:create' => $this->tenantCreate($argv),
             'tenant:add-member' => $this->tenantAddMember($argv),
@@ -71,7 +102,6 @@ final class AdminCommandRunner
             'jwt:key-rotate' => $this->jwtKeyRotate($flags),
             'jwt:key-list' => $this->jwtKeyList(),
             'jwt:key-retire' => $this->jwtKeyRetire($argv),
-            default => throw new \InvalidArgumentException('Unknown verb: ' . $verb),
         };
     }
 
