@@ -9,6 +9,7 @@ final class ConfigLoader
     /**
      * @return array{
      *   app_env: string,
+     *   force_https: bool,
      *   broker: array{name: string, base_url: string},
      *   session: array{cookie_name: string, secure: bool, ttl_minutes: int, reader_cookie_name: string},
      *   db: array{host: string, port: int, name: string, user: string, password: string},
@@ -83,15 +84,24 @@ final class ConfigLoader
             $tokenTtl = $tokenTtlMax;
         }
 
+        $appEnv = (string) $env['APP_ENV'];
+        $forceHttps = self::resolveForceHttps($env, $appEnv);
+        $cookieSecure = filter_var($env['SESSION_COOKIE_SECURE'], FILTER_VALIDATE_BOOLEAN);
+        // S7: when HTTPS is enforced, cookies must be Secure even if the env flag was left false.
+        if ($forceHttps) {
+            $cookieSecure = true;
+        }
+
         return [
-            'app_env' => $env['APP_ENV'],
+            'app_env' => $appEnv,
+            'force_https' => $forceHttps,
             'broker' => [
                 'name' => $env['BROKER_NAME'],
                 'base_url' => rtrim($env['BROKER_BASE_URL'], '/'),
             ],
             'session' => [
                 'cookie_name' => $env['SESSION_COOKIE_NAME'],
-                'secure' => filter_var($env['SESSION_COOKIE_SECURE'], FILTER_VALIDATE_BOOLEAN),
+                'secure' => $cookieSecure,
                 'ttl_minutes' => (int) $env['SESSION_TTL_MINUTES'],
                 'reader_cookie_name' => $env['READER_SESSION_COOKIE_NAME'] ?? 'GPSREADER',
             ],
@@ -147,6 +157,7 @@ final class ConfigLoader
     {
         return [
             'APP_ENV',
+            'FORCE_HTTPS',
             'BROKER_BASE_URL',
             'BROKER_NAME',
             'SESSION_COOKIE_NAME',
@@ -177,6 +188,20 @@ final class ConfigLoader
             'GITHUB_CLIENT_SECRET',
             'GITHUB_REDIRECT_URI',
         ];
+    }
+
+    /**
+     * FORCE_HTTPS=true|false overrides; otherwise enabled when APP_ENV=prod.
+     *
+     * @param array<string, string> $env
+     */
+    private static function resolveForceHttps(array $env, string $appEnv): bool
+    {
+        if (array_key_exists('FORCE_HTTPS', $env) && $env['FORCE_HTTPS'] !== '') {
+            return filter_var($env['FORCE_HTTPS'], FILTER_VALIDATE_BOOLEAN);
+        }
+
+        return strtolower($appEnv) === 'prod';
     }
 
     private static function positiveInt(string $raw, int $default): int

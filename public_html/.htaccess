@@ -1,3 +1,11 @@
 RewriteEngine On
+
+# Optional Apache-level HTTPS redirect. PHP HttpsEnforcer is authoritative when
+# APP_ENV=prod or FORCE_HTTPS=true (also covers proxies that terminate TLS).
+# Uncomment if the host does not already force HTTPS via AutoSSL / CDN:
+# RewriteCond %{HTTPS} !=on
+# RewriteCond %{HTTP:X-Forwarded-Proto} !https [NC]
+# RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule ^ index.php [L]

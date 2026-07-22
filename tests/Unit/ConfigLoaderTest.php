@@ -64,6 +64,7 @@ ENV);
         $config = ConfigLoader::load($this->tmpEnv);
 
         $this->assertSame('dev', $config['app_env']);
+        $this->assertFalse($config['force_https']);
         $this->assertSame('http://localhost:8080', $config['broker']['base_url']);
         $this->assertSame('AUTHSESSID', $config['session']['cookie_name']);
         $this->assertFalse($config['session']['secure']);
@@ -137,6 +138,38 @@ ENV);
         $this->assertSame(90, $config['audit']['retention_days']);
     }
 
+    public function testProdDefaultsForceHttpsAndSecureCookie(): void
+    {
+        $this->writeEnv(str_replace('APP_ENV=dev', 'APP_ENV=prod', $this->minimalEnv()));
+
+        $config = ConfigLoader::load($this->tmpEnv);
+
+        $this->assertSame('prod', $config['app_env']);
+        $this->assertTrue($config['force_https']);
+        $this->assertTrue($config['session']['secure']);
+    }
+
+    public function testForceHttpsOverrideOnDev(): void
+    {
+        $this->writeEnv($this->minimalEnv() . "\nFORCE_HTTPS=true\n");
+
+        $config = ConfigLoader::load($this->tmpEnv);
+
+        $this->assertTrue($config['force_https']);
+        $this->assertTrue($config['session']['secure']);
+    }
+
+    public function testForceHttpsFalseOverridesProd(): void
+    {
+        $env = str_replace('APP_ENV=dev', 'APP_ENV=prod', $this->minimalEnv());
+        $this->writeEnv($env . "\nFORCE_HTTPS=false\nSESSION_COOKIE_SECURE=false\n");
+
+        $config = ConfigLoader::load($this->tmpEnv);
+
+        $this->assertFalse($config['force_https']);
+        $this->assertFalse($config['session']['secure']);
+    }
+
     public function testMissingRequiredFailsFast(): void
     {
         file_put_contents($this->tmpEnv, "APP_ENV=dev\n");
@@ -181,7 +214,7 @@ ENV;
     private function processKeys(): array
     {
         return [
-            'APP_ENV', 'BROKER_BASE_URL', 'BROKER_NAME',
+            'APP_ENV', 'FORCE_HTTPS', 'BROKER_BASE_URL', 'BROKER_NAME',
             'SESSION_COOKIE_NAME', 'SESSION_COOKIE_SECURE', 'SESSION_TTL_MINUTES',
             'READER_SESSION_COOKIE_NAME',
             'DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD',

@@ -6,6 +6,7 @@ use GrandpaSSOn\Config\ConfigLoader;
 use GrandpaSSOn\Http\AppRoutes;
 use GrandpaSSOn\Http\Router;
 use GrandpaSSOn\Infrastructure\Session\SessionBootstrap;
+use GrandpaSSOn\Support\HttpsEnforcer;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
@@ -16,6 +17,11 @@ try {
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode(['error' => 'config', 'message' => $e->getMessage()], JSON_THROW_ON_ERROR);
     exit(1);
+}
+
+// S7: redirect cleartext when APP_ENV=prod or FORCE_HTTPS=true (dev/local stays HTTP-friendly).
+if (HttpsEnforcer::enforceOrContinue($config)) {
+    exit(0);
 }
 
 try {
