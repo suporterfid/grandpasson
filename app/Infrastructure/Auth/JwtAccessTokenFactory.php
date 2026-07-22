@@ -27,7 +27,7 @@ final class JwtAccessTokenFactory
         }
         if ($pdo !== null) {
             try {
-                if ((new JwtSigningKeyRepository($pdo))->findActive() !== null) {
+                if (self::keys($config, $pdo)->findActive() !== null) {
                     return true;
                 }
             } catch (\Throwable) {
@@ -68,7 +68,7 @@ final class JwtAccessTokenFactory
         ];
 
         if ($pdo !== null) {
-            $active = (new JwtSigningKeyRepository($pdo))->findActive();
+            $active = self::keys($config, $pdo)->findActive();
             if ($active !== null) {
                 return JWT::encode($payload, $active->privatePem, 'RS256', $active->kid);
             }
@@ -80,5 +80,17 @@ final class JwtAccessTokenFactory
         }
 
         return JWT::encode($payload, $secret, 'HS256');
+    }
+
+    /** @param array<string, mixed> $config */
+    private static function keys(array $config, PDO $pdo): JwtSigningKeyRepository
+    {
+        $jwt = is_array($config['jwt'] ?? null) ? $config['jwt'] : [];
+
+        return new JwtSigningKeyRepository(
+            $pdo,
+            (string) ($jwt['key_encryption_secret'] ?? ''),
+            (string) ($config['app_env'] ?? 'dev'),
+        );
     }
 }

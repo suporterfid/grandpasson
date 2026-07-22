@@ -61,6 +61,9 @@ Set at least:
 | `ACCESS_TOKEN_TTL_SECONDS` | v1 machine-token TTL (default `900`); clamped to max |
 | `ACCESS_TOKEN_TTL_MAX_SECONDS` | Hard max TTL (default `3600`) |
 | `AUDIT_RETENTION_DAYS` | Days to keep enriched audit rows (default `90`) |
+| `JWT_ACCESS_TOKEN_ENABLED` | `true` to mint optional companion JWTs on `/oauth/token` |
+| `JWT_HMAC_SECRET` | HS256 fallback when no RS256 key is active |
+| `JWT_KEY_ENCRYPTION_SECRET` | AES-256-GCM key wrapping RS256 private PEMs at rest (required in `prod` before `jwt:key-rotate`) |
 | Provider `*_CLIENT_ID` / `*_CLIENT_SECRET` / redirect URIs | Must match IdP consoles |
 | `MS_TENANT_ID` | Directory tenant ID (use `common` only when intentional) |
 
@@ -100,6 +103,8 @@ php cron/admin.php client:create-service "Agent" --scopes=kb:read --aud=workspac
 ```
 
 Optional HTTP mirror (R12): set `ADMIN_API_TOKEN`, open `/admin`, or `POST /admin/api` with `X-Admin-Token` / `Authorization: Bearer`.
+
+RS256 JWT signing keys (`jwt:key-rotate`): set `JWT_KEY_ENCRYPTION_SECRET` so private PEMs are AES-256-GCM encrypted in MySQL (S2). Required when `APP_ENV=prod`. JWKS still publishes public keys only.
 
 See [client-integration.md](client-integration.md) §5 for machine-token flows. P0 completion checklist: [v1-p0-stop-line.md](v1-p0-stop-line.md).
 

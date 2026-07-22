@@ -31,8 +31,12 @@ final class AdminCommandRunner
     ) {
     }
 
-    public static function fromPdo(PDO $pdo): self
+    public static function fromPdo(PDO $pdo, array $config = []): self
     {
+        $jwt = is_array($config['jwt'] ?? null) ? $config['jwt'] : [];
+        $secret = (string) ($jwt['key_encryption_secret'] ?? '');
+        $appEnv = (string) ($config['app_env'] ?? 'dev');
+
         return new self(
             $pdo,
             new TenantRepository($pdo),
@@ -40,7 +44,7 @@ final class AdminCommandRunner
             new AccessTokenRepository($pdo),
             new AuditLogger($pdo),
             new PublishedSiteRepository($pdo),
-            new JwtSigningKeyRepository($pdo),
+            new JwtSigningKeyRepository($pdo, $secret, $appEnv),
         );
     }
 

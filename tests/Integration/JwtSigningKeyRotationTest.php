@@ -50,7 +50,10 @@ final class JwtSigningKeyRotationTest extends TestCase
 
     public function testRotatePublishesJwksAndSignsWithKid(): void
     {
-        $admin = AdminCommandRunner::fromPdo($this->pdo);
+        $admin = AdminCommandRunner::fromPdo($this->pdo, [
+            'app_env' => 'dev',
+            'jwt' => ['key_encryption_secret' => ''],
+        ]);
         $first = $admin->run('jwt:key-rotate', []);
         $this->assertTrue($first['ok']);
         $kid1 = (string) $first['kid'];
@@ -69,8 +72,9 @@ final class JwtSigningKeyRotationTest extends TestCase
         $this->assertSame('active', $byKid[$kid2]);
 
         $config = [
+            'app_env' => 'dev',
             'broker' => ['base_url' => 'https://auth.example.com'],
-            'jwt' => ['enabled' => true, 'hmac_secret' => ''],
+            'jwt' => ['enabled' => true, 'hmac_secret' => '', 'key_encryption_secret' => ''],
             'db' => [
                 'host' => getenv('TEST_DB_HOST') ?: '127.0.0.1',
                 'port' => (int) (getenv('TEST_DB_PORT') ?: '3306'),
@@ -118,6 +122,73 @@ final class JwtSigningKeyRotationTest extends TestCase
         $jwks2 = (new JwtSigningKeyRepository($this->pdo))->jwks();
         $this->assertCount(1, $jwks2['keys']);
         $this->assertSame($kid2, $jwks2['keys'][0]['kid']);
+    }
+
+    public function testEncryptedPrivatePemAtRestRoundTrip(): void
+    {
+        $secret = 'unit-test-jwt-key-encryption-secret';
+        $config = [
+            'app_env' => 'prod',
+            'broker' => ['base_url' => 'https://auth.example.com'],
+            'jwt' => [
+                'enabled' => true,
+                'hmac_secret' => '',
+                'key_encryption_secret' => $secret,
+            ],
+            'db' => [
+                'host' => getenv('TEST_DB_HOST') ?: '127.0.0.1',
+                'port' => (int) (getenv('TEST_DB_PORT') ?: '3306'),
+                'name' => $this->dbName,
+                'user' => getenv('TEST_DB_USER') ?: 'root',
+                'password' => getenv('TEST_DB_PASS') !== false && getenv('TEST_DB_PASS') !== ''
+                    ? (string) getenv('TEST_DB_PASS')
+                    : 'devrootpass',
+            ],
+        ];
+
+        $admin = AdminCommandRunner::fromPdo($this->pdo, $config);
+        $rotated = $admin->run('jwt:key-rotate', []);
+        $kid = (string) $rotated['kid'];
+
+        $stmt = $this->pdo->prepare('SELECT private_pem FROM jwt_signing_keys WHERE kid = :kid');
+        $stmt->execute(['kid' => $kid]);
+        $stored = (string) $stmt->fetchColumn();
+        $this->assertStringStartsWith('enc:v1:', $stored);
+        $this->assertStringNotContainsString('BEGIN PRIVATE KEY', $stored);
+
+        $record = new AccessToken(
+            id: 'tok-enc',
+            tokenHash: str_repeat('c', 64),
+            clientId: 'svc',
+            subjectUserId: null,
+            scope: 'kb:read',
+            aud: null,
+            tenantId: null,
+            expiresAt: gmdate('Y-m-d H:i:s', time() + 900),
+            revokedAt: null,
+            createdAt: gmdate('Y-m-d H:i:s'),
+            lastUsedAt: null,
+        );
+        $jwt = JwtAccessTokenFactory::mint($config, $record, $this->pdo);
+
+        Connection::reset();
+        ob_start();
+        (new JwksController())->show($config);
+        $jwks = json_decode((string) ob_get_clean(), true);
+        $decoded = (array) JWT::decode($jwt, JWK::parseKeySet($jwks));
+        $this->assertSame('tok-enc', $decoded['jti']);
+        $this->assertSame($kid, $this->jwtHeaderKid($jwt));
+    }
+
+    public function testProdRotateRequiresEncryptionSecret(): void
+    {
+        $admin = AdminCommandRunner::fromPdo($this->pdo, [
+            'app_env' => 'prod',
+            'jwt' => ['key_encryption_secret' => ''],
+        ]);
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('JWT_KEY_ENCRYPTION_SECRET');
+        $admin->run('jwt:key-rotate', []);
     }
 
     private function jwtHeaderKid(string $jwt): string
