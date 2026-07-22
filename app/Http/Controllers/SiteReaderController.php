@@ -23,6 +23,55 @@ use GrandpaSSOn\Support\RateLimitGate;
 final class SiteReaderController
 {
     /** @param array<string, mixed> $config @param array<string, string> $params */
+    public function chooser(array $config, array $params = []): void
+    {
+        $siteId = (string) ($params['site_id'] ?? '');
+        if ($siteId === '') {
+            Http::json(400, ['error' => 'invalid_request', 'message' => 'site_id required']);
+
+            return;
+        }
+
+        $pdo = Connection::get($config['db']);
+        if (!RateLimitGate::allowLogin($pdo, 'reader_login_chooser')) {
+            Http::json(429, ['error' => 'rate_limited']);
+
+            return;
+        }
+
+        $site = (new PublishedSiteRepository($pdo))->findBySiteId($siteId);
+        if ($site === null || !$site->enabled) {
+            Http::json(404, ['error' => 'site_not_found']);
+
+            return;
+        }
+        if ($site->visibility === PublishedSite::VIS_PUBLIC) {
+            Http::json(400, ['error' => 'login_not_required', 'message' => 'Site is public']);
+
+            return;
+        }
+
+        $default = strtolower(trim((string) ($_GET['provider'] ?? '')));
+        if (in_array($default, ['google', 'microsoft', 'github'], true)) {
+            $this->login($config, ['site_id' => $siteId, 'provider' => $default]);
+
+            return;
+        }
+
+        $safeSite = htmlspecialchars($siteId, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $name = htmlspecialchars((string) ($config['broker']['name'] ?? 'GrandpaSSOn'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        header('Content-Type: text/html; charset=utf-8');
+        echo '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>' . $name . ' reader login</title></head><body>';
+        echo '<h1>' . $name . ' reader login</h1>';
+        echo '<p>Sign in to read site <code>' . $safeSite . '</code> (publish:read only; not an editor session).</p><ul>';
+        foreach (['google', 'microsoft', 'github'] as $provider) {
+            $href = '/site/' . rawurlencode($siteId) . '/login/' . $provider;
+            echo '<li><a href="' . htmlspecialchars($href, ENT_QUOTES) . '">' . htmlspecialchars($provider, ENT_QUOTES) . '</a></li>';
+        }
+        echo '</ul></body></html>';
+    }
+
+    /** @param array<string, mixed> $config @param array<string, string> $params */
     public function login(array $config, array $params = []): void
     {
         $siteId = (string) ($params['site_id'] ?? '');
@@ -213,11 +262,19 @@ final class SiteReaderController
             : null;
 
         if ($session === null || $session['site_id'] !== $siteId) {
+            $loginPath = '/site/' . rawurlencode($siteId) . '/login';
+            // Browser navigations: 302 to the reader chooser (spec §9 anonymous redirect).
+            // API / XHR clients keep JSON 401 + login hint (RP owns its own redirect UX).
+            if ($this->wantsBrowserRedirect()) {
+                Http::redirect($loginPath);
+
+                return;
+            }
             Http::json(401, [
                 'error' => 'unauthenticated',
                 'site_id' => $siteId,
                 'visibility' => $site->visibility,
-                'login' => '/site/' . rawurlencode($siteId) . '/login/google',
+                'login' => $loginPath,
             ]);
 
             return;
@@ -282,6 +339,11 @@ final class SiteReaderController
         $name = $this->cookieName($config);
 
         return isset($_COOKIE[$name]) && is_string($_COOKIE[$name]) ? $_COOKIE[$name] : '';
+    }
+
+    private function wantsBrowserRedirect(): bool
+    {
+        return Http::prefersHtml();
     }
 
     private function htmlFail(int $status, string $error, string $message): void

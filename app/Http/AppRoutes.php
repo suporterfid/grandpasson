@@ -46,6 +46,7 @@ final class AppRoutes
             ['GET', '/me/pats', UserPatController::class, 'list'],
             ['POST', '/me/pats', UserPatController::class, 'create'],
             ['POST', '/me/pats/{id}/revoke', UserPatController::class, 'revoke'],
+            ['GET', '/site/{site_id}/login', SiteReaderController::class, 'chooser'],
             ['GET', '/site/{site_id}/login/{provider}', SiteReaderController::class, 'login'],
             ['GET', '/site/{site_id}/session', SiteReaderController::class, 'session'],
             ['POST', '/site/{site_id}/logout', SiteReaderController::class, 'logout'],

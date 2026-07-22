@@ -175,6 +175,17 @@ curl -sS -X POST https://auth.example.com/logout \
   -d "csrf=TOKEN_FROM_SESSION"
 ```
 
+## 8. Gated publishing (reader sessions)
+
+Reader auth is isolated from editor login (`GPSREADER` cookie ≠ `AUTHSESSID`).
+
+- Chooser: `GET /site/{site_id}/login` (HTML links to google/microsoft/github). Optional `?provider=google` skips the chooser.
+- Provider start: `GET /site/{site_id}/login/{provider}` → IdP → shared `/callback/{provider}` → reader cookie with `publish:read` only.
+- Session check: `GET /site/{site_id}/session`
+  - **Browser** (`Accept: text/html`): anonymous gated sites **302** to `/site/{id}/login`.
+  - **API / XHR** (`Accept: application/json` or non-HTML): **401 JSON** with a `login` path hint — the relying party owns any in-app redirect UX.
+- Private sites enforce tenant membership at login time; reader sessions never unlock editor `/session`.
+
 ## Local smoke path
 
 ```bash

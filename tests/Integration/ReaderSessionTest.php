@@ -158,8 +158,62 @@ final class ReaderSessionTest extends TestCase
         (new SiteReaderController())->session($this->config, ['site_id' => 'docs-private']);
         $denied = json_decode((string) ob_get_clean(), true);
         $this->assertSame(401, http_response_code());
-        $this->assertStringContainsString('/site/docs-private/login/', (string) ($denied['login'] ?? ''));
+        $this->assertSame('/site/docs-private/login', (string) ($denied['login'] ?? ''));
         unset($outsider);
+    }
+
+    public function testLoginChooserRendersProviders(): void
+    {
+        (new PublishedSiteRepository($this->pdo))->create(
+            'docs-chooser',
+            'Chooser',
+            PublishedSite::VIS_AUTHENTICATED,
+        );
+        http_response_code(200);
+        ob_start();
+        (new SiteReaderController())->chooser($this->config, ['site_id' => 'docs-chooser']);
+        $html = (string) ob_get_clean();
+        $this->assertSame(200, http_response_code());
+        $this->assertStringContainsString('/site/docs-chooser/login/google', $html);
+        $this->assertStringContainsString('/site/docs-chooser/login/microsoft', $html);
+        $this->assertStringContainsString('/site/docs-chooser/login/github', $html);
+        $this->assertStringContainsString('publish:read', $html);
+    }
+
+    public function testAnonymousBrowserSessionRedirectsToLoginChooser(): void
+    {
+        (new PublishedSiteRepository($this->pdo))->create(
+            'docs-redir',
+            'Redir',
+            PublishedSite::VIS_AUTHENTICATED,
+        );
+        $_SERVER['HTTP_ACCEPT'] = 'text/html,application/xhtml+xml';
+        $_COOKIE = [];
+        http_response_code(200);
+        // Clear any prior Location header tracking via response code assertion.
+        ob_start();
+        (new SiteReaderController())->session($this->config, ['site_id' => 'docs-redir']);
+        ob_end_clean();
+        $this->assertSame(302, http_response_code());
+        unset($_SERVER['HTTP_ACCEPT']);
+    }
+
+    public function testAnonymousJsonSessionKeeps401Hint(): void
+    {
+        (new PublishedSiteRepository($this->pdo))->create(
+            'docs-json',
+            'Json',
+            PublishedSite::VIS_AUTHENTICATED,
+        );
+        $_SERVER['HTTP_ACCEPT'] = 'application/json';
+        $_COOKIE = [];
+        http_response_code(200);
+        ob_start();
+        (new SiteReaderController())->session($this->config, ['site_id' => 'docs-json']);
+        $denied = json_decode((string) ob_get_clean(), true);
+        $this->assertSame(401, http_response_code());
+        $this->assertSame('/site/docs-json/login', $denied['login'] ?? null);
+        unset($_SERVER['HTTP_ACCEPT']);
     }
 
     private function seedUser(string $email): string
