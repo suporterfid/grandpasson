@@ -17,6 +17,7 @@ final class ConfigLoader
      *   admin_api_token: string,
      *   tokens: array{access_ttl_seconds: int, access_ttl_max_seconds: int},
      *   audit: array{retention_days: int},
+     *   jwt: array{enabled: bool, hmac_secret: string},
      *   providers: array<string, array{client_id: string, client_secret: string, redirect_uri: string, scopes: list<string>, tenant_id?: string}>
      * }
      */
@@ -111,6 +112,10 @@ final class ConfigLoader
             'audit' => [
                 'retention_days' => self::positiveInt($env['AUDIT_RETENTION_DAYS'] ?? '', 90),
             ],
+            'jwt' => [
+                'enabled' => filter_var($env['JWT_ACCESS_TOKEN_ENABLED'] ?? 'false', FILTER_VALIDATE_BOOLEAN),
+                'hmac_secret' => (string) ($env['JWT_HMAC_SECRET'] ?? ''),
+            ],
             'providers' => [
                 'google' => [
                     'client_id' => $env['GOOGLE_CLIENT_ID'] ?? '',
@@ -159,6 +164,8 @@ final class ConfigLoader
             'ACCESS_TOKEN_TTL_SECONDS',
             'ACCESS_TOKEN_TTL_MAX_SECONDS',
             'AUDIT_RETENTION_DAYS',
+            'JWT_ACCESS_TOKEN_ENABLED',
+            'JWT_HMAC_SECRET',
             'GOOGLE_CLIENT_ID',
             'GOOGLE_CLIENT_SECRET',
             'GOOGLE_REDIRECT_URI',
