@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace GrandpaSSOn\Tests\Unit;
 
+use GrandpaSSOn\Http\AppRoutes;
+use GrandpaSSOn\Http\Controllers\CallbackController;
 use GrandpaSSOn\Http\Controllers\HealthController;
 use GrandpaSSOn\Http\Controllers\LoginController;
 use GrandpaSSOn\Http\Controllers\OAuthIntrospectController;
@@ -64,6 +66,12 @@ final class RouterTest extends TestCase
         $this->assertSame(LoginController::class, $match[0]);
         $this->assertSame('start', $match[1]);
         $this->assertSame(['provider' => 'google'], $match[2]);
+
+        $cb = $router->match('GET', '/callback/github');
+        $this->assertNotNull($cb);
+        $this->assertSame(CallbackController::class, $cb[0]);
+        $this->assertSame('handle', $cb[1]);
+        $this->assertSame(['provider' => 'github'], $cb[2]);
     }
 
     public function testUnknownRouteReturnsNull(): void
@@ -73,18 +81,34 @@ final class RouterTest extends TestCase
         $this->assertNull($router->match('DELETE', '/session'));
     }
 
+    public function testP0OauthSurfaceIsRegistered(): void
+    {
+        $paths = [];
+        foreach (AppRoutes::definitions() as [$method, $path]) {
+            $paths[] = $method . ' ' . $path;
+        }
+        $this->assertContains('POST /oauth/token', $paths);
+        $this->assertContains('POST /oauth/introspect', $paths);
+        $this->assertContains('POST /oauth/revoke', $paths);
+        $this->assertContains('POST /session/exchange', $paths);
+    }
+
+    public function testOauthControllersApplyRateLimitGate(): void
+    {
+        foreach ([
+            dirname(__DIR__, 2) . '/app/Http/Controllers/OAuthTokenController.php',
+            dirname(__DIR__, 2) . '/app/Http/Controllers/OAuthIntrospectController.php',
+            dirname(__DIR__, 2) . '/app/Http/Controllers/OAuthRevokeController.php',
+        ] as $file) {
+            $src = (string) file_get_contents($file);
+            $this->assertStringContainsString('RateLimitGate::allow', $src, basename($file));
+        }
+    }
+
     private function wiredRouter(): Router
     {
         $router = new Router();
-        $router->get('/', HealthController::class, 'index');
-        $router->get('/login', LoginController::class, 'chooser');
-        $router->get('/login/{provider}', LoginController::class, 'start');
-        $router->get('/callback/{provider}', LoginController::class, 'start');
-        $router->get('/session', \GrandpaSSOn\Http\Controllers\SessionController::class, 'show');
-        $router->post('/session/exchange', SessionExchangeController::class, 'exchange');
-        $router->post('/oauth/token', OAuthTokenController::class, 'token');
-        $router->post('/oauth/introspect', OAuthIntrospectController::class, 'introspect');
-        $router->post('/oauth/revoke', OAuthRevokeController::class, 'revoke');
+        AppRoutes::register($router);
 
         return $router;
     }

@@ -97,7 +97,7 @@ php cron/admin.php tenant:create acme "Acme Corp"
 php cron/admin.php client:create-service "Agent" --scopes=kb:read --aud=workspace/abc
 ```
 
-See [client-integration.md](client-integration.md) §5 for machine-token flows.
+See [client-integration.md](client-integration.md) §5 for machine-token flows. P0 completion checklist: [v1-p0-stop-line.md](v1-p0-stop-line.md).
 
 ## 6. HTTPS and cookies
 
