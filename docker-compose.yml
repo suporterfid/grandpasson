@@ -7,9 +7,18 @@ services:
       - ./public_html:/var/www/html/public_html:ro
       - ./app:/var/www/html/app:ro
       - ./vendor:/var/www/html/vendor:ro
+      - ./cron:/var/www/html/cron:ro
+      - ./tests:/var/www/html/tests:ro
+      - ./phpunit.xml:/var/www/html/phpunit.xml:ro
+      - ./.env:/var/www/html/.env:ro
+    extra_hosts:
+      # Some environments block bridge DNS between containers; reach MySQL via published host port.
+      - "host.docker.internal:host-gateway"
     environment:
       - APP_ENV=dev
       - APACHE_DOCUMENT_ROOT=/var/www/html/public_html
+      # Override .env DB_HOST=127.0.0.1 (host CLI) so the web container hits published :3306.
+      - DB_HOST=host.docker.internal
     env_file:
       - .env
     depends_on:
