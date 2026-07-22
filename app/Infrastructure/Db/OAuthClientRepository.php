@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace GrandpaSSOn\Infrastructure\Db;
 
 use GrandpaSSOn\Domain\OAuthClient;
+use GrandpaSSOn\Infrastructure\Auth\ClientSecretHasher;
 use PDO;
 
 final class OAuthClientRepository
@@ -50,7 +51,7 @@ final class OAuthClientRepository
 
         $hash = null;
         if ($type === 'confidential') {
-            $hash = password_hash((string) $plaintextSecret, PASSWORD_DEFAULT);
+            $hash = ClientSecretHasher::hash((string) $plaintextSecret);
         }
 
         $urisJson = json_encode(array_values($redirectUris), JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);

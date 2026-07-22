@@ -33,7 +33,7 @@ test:
 	php vendor/bin/phpunit
 
 build:
-	docker compose -f docker-compose.build.yml run --rm build
+	docker compose -f docker-compose.build.yml run --rm --build build
 
 cleanup-sessions:
 	php cron/cleanup_sessions.php
