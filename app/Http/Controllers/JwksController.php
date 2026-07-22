@@ -22,7 +22,12 @@ final class JwksController
 
         try {
             $pdo = Connection::get($config['db']);
-            $jwks = (new JwtSigningKeyRepository($pdo))->jwks();
+            $jwt = is_array($config['jwt'] ?? null) ? $config['jwt'] : [];
+            $jwks = (new JwtSigningKeyRepository(
+                $pdo,
+                (string) ($jwt['key_encryption_secret'] ?? ''),
+                (string) ($config['app_env'] ?? 'dev'),
+            ))->jwks();
             Http::json(200, $jwks);
         } catch (\Throwable) {
             Http::json(200, ['keys' => []]);

@@ -199,7 +199,7 @@ HTML;
 
         try {
             $pdo = Connection::get($config['db']);
-            $result = AdminCommandRunner::fromPdo($pdo)->run($verb, $argList, $flagMap);
+            $result = AdminCommandRunner::fromPdo($pdo, $config)->run($verb, $argList, $flagMap);
             Http::json(200, $result);
         } catch (\InvalidArgumentException $e) {
             Http::json(400, ['error' => 'invalid_argument', 'message' => $e->getMessage()]);

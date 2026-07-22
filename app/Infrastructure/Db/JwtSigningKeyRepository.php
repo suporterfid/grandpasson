@@ -5,22 +5,29 @@ declare(strict_types=1);
 namespace GrandpaSSOn\Infrastructure\Db;
 
 use GrandpaSSOn\Domain\JwtSigningKey;
+use GrandpaSSOn\Support\PemCrypto;
 use PDO;
 
 final class JwtSigningKeyRepository
 {
-    public function __construct(private readonly PDO $pdo)
-    {
+    public function __construct(
+        private readonly PDO $pdo,
+        private readonly string $encryptionSecret = '',
+        private readonly string $appEnv = 'dev',
+    ) {
     }
 
     /**
      * Generate a new RS256 keypair, mark it active, and demote the previous active key to retiring.
+     * Private PEMs are encrypted at rest when JWT_KEY_ENCRYPTION_SECRET is set (required in prod).
      */
     public function rotate(int $bits = 2048): JwtSigningKey
     {
         if ($bits < 2048) {
             throw new \InvalidArgumentException('RSA key size must be >= 2048');
         }
+        $this->assertCanStorePrivatePem();
+
         $keypair = openssl_pkey_new([
             'private_key_bits' => $bits,
             'private_key_type' => OPENSSL_KEYTYPE_RSA,
@@ -39,6 +46,7 @@ final class JwtSigningKeyRepository
         $publicPem = (string) $details['key'];
         $kid = 'jwt_' . bin2hex(random_bytes(8));
         $now = gmdate('Y-m-d H:i:s');
+        $storedPrivate = $this->sealPrivatePem($privatePem);
 
         $this->pdo->beginTransaction();
         try {
@@ -56,7 +64,7 @@ final class JwtSigningKeyRepository
             $insert->execute([
                 'kid' => $kid,
                 'public_pem' => $publicPem,
-                'private_pem' => $privatePem,
+                'private_pem' => $storedPrivate,
                 'created_at' => $now,
             ]);
             $this->pdo->commit();
@@ -150,6 +158,27 @@ final class JwtSigningKeyRepository
         return ['keys' => $keys];
     }
 
+    private function assertCanStorePrivatePem(): void
+    {
+        if ($this->encryptionSecret !== '') {
+            return;
+        }
+        if (strtolower($this->appEnv) === 'prod') {
+            throw new \RuntimeException(
+                'JWT_KEY_ENCRYPTION_SECRET is required in APP_ENV=prod before rotating RS256 keys'
+            );
+        }
+    }
+
+    private function sealPrivatePem(string $privatePem): string
+    {
+        if ($this->encryptionSecret === '') {
+            return $privatePem;
+        }
+
+        return PemCrypto::encrypt($privatePem, $this->encryptionSecret);
+    }
+
     /**
      * @return array<string, mixed>|null
      */
@@ -182,11 +211,14 @@ final class JwtSigningKeyRepository
     /** @param array<string, mixed> $row */
     private function map(array $row): JwtSigningKey
     {
+        $stored = (string) $row['private_pem'];
+        $privatePem = PemCrypto::decrypt($stored, $this->encryptionSecret);
+
         return new JwtSigningKey(
             (string) $row['kid'],
             (string) $row['alg'],
             (string) $row['public_pem'],
-            (string) $row['private_pem'],
+            $privatePem,
             (string) $row['status'],
             (string) $row['created_at'],
             $row['retired_at'] !== null ? (string) $row['retired_at'] : null,

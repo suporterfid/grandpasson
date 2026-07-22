@@ -88,7 +88,7 @@ foreach ($argvList as $arg) {
 try {
     $config = ConfigLoader::load();
     $pdo = Connection::get($config['db']);
-    $runner = AdminCommandRunner::fromPdo($pdo);
+    $runner = AdminCommandRunner::fromPdo($pdo, $config);
     $result = $runner->run((string) $verb, $positional, $flags);
 
     if (isset($result['client_secret'])) {
