@@ -54,6 +54,17 @@ echo "$LIST" | grep -E '^vendor/phpunit/|^vendor/bin/phpunit' && {
   exit 1
 } || true
 
+echo "==> S1 secret scan of release zip"
+php -r '
+require "'"$ROOT"'/app/Support/SecretScanner.php";
+$findings = GrandpaSSOn\Support\SecretScanner::scanReleaseZip("'"$ROOT"'/grandpasson-release.zip");
+if ($findings !== []) {
+    fwrite(STDERR, implode("\n", $findings) . "\n");
+    exit(1);
+}
+echo "S1 zip scan clean\n";
+'
+
 count="$(echo "$LIST" | wc -l | tr -d ' ')"
 echo "OK: ${count} entries in grandpasson-release.zip"
 

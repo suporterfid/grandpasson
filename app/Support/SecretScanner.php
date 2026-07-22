@@ -46,7 +46,8 @@ final class SecretScanner
     }
 
     /**
-     * Scan a release zip for secrets in app/ and for a forbidden .env payload.
+     * Scan a release zip for secrets in first-party trees and forbidden env files.
+     * Skips vendor/ to avoid third-party noise; still blocks shipping a real `.env`.
      *
      * @return list<string>
      */
@@ -69,13 +70,16 @@ final class SecretScanner
             for ($i = 0; $i < $zip->numFiles; $i++) {
                 $name = (string) $zip->getNameIndex($i);
                 $normalized = ltrim(str_replace('\\', '/', $name), '/');
-
-                if ($normalized === '.env' || str_ends_with($normalized, '/.env')) {
-                    $findings[] = $normalized . ': forbidden .env present in release zip';
+                if ($normalized === '' || str_ends_with($normalized, '/')) {
                     continue;
                 }
 
-                if (!str_starts_with($normalized, 'app/') || !self::isScannableFile(basename($normalized))) {
+                if (self::isForbiddenEnvPath($normalized)) {
+                    $findings[] = $normalized . ': forbidden env file present in release zip';
+                    continue;
+                }
+
+                if (!self::shouldScanZipEntry($normalized)) {
                     continue;
                 }
 
@@ -135,16 +139,51 @@ final class SecretScanner
         return array_values(array_unique($hits));
     }
 
+    private static function shouldScanZipEntry(string $normalized): bool
+    {
+        if (str_starts_with($normalized, 'vendor/')) {
+            return false;
+        }
+        if (!self::isScannableFile(basename($normalized))) {
+            return false;
+        }
+        if (!str_contains($normalized, '/')) {
+            return true;
+        }
+
+        foreach (['app/', 'cron/', 'public_html/'] as $prefix) {
+            if (str_starts_with($normalized, $prefix)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static function isForbiddenEnvPath(string $normalized): bool
+    {
+        $base = basename($normalized);
+        if ($base === '.env.example') {
+            return false;
+        }
+
+        return $base === '.env' || str_starts_with($base, '.env.');
+    }
+
     private static function isScannableFile(string $filename): bool
     {
+        if ($filename === '.env' || $filename === '.env.example' || str_starts_with($filename, '.env.')) {
+            return true;
+        }
+
         $lower = strtolower($filename);
-        foreach (['.php', '.json', '.env', '.yml', '.yaml', '.xml', '.md', '.txt', '.sh', '.ini'] as $ext) {
+        foreach (['.php', '.json', '.yml', '.yaml', '.xml', '.md', '.txt', '.sh', '.ini'] as $ext) {
             if (str_ends_with($lower, $ext)) {
                 return true;
             }
         }
 
-        return $filename === '.env' || $filename === '.env.example';
+        return false;
     }
 
     private static function isPlaceholderSecret(string $value): bool

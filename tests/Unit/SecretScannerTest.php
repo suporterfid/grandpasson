@@ -68,9 +68,14 @@ final class SecretScannerTest extends TestCase
         $zip = new ZipArchive();
         $this->assertTrue($zip->open($zipPath, ZipArchive::CREATE));
         $zip->addFromString('.env', "DB_PASSWORD=supersecretvalue\n");
+        $zip->addFromString('.env.production', "API_KEY=anothersecret\n");
         $zip->addFromString(
             'app/Leak.php',
             "<?php\n\$client_secret = \"hardcodedsecret99\";\n"
+        );
+        $zip->addFromString(
+            'cron/leak.php',
+            "<?php\n\$api_key = \"cronsecretvalue1\";\n"
         );
         $zip->close();
 
@@ -78,7 +83,9 @@ final class SecretScannerTest extends TestCase
         $this->assertNotSame([], $findings);
         $joined = implode("\n", $findings);
         $this->assertStringContainsString('.env', $joined);
+        $this->assertStringContainsString('.env.production', $joined);
         $this->assertStringContainsString('hardcoded client_secret', $joined);
+        $this->assertStringContainsString('cron/leak.php', $joined);
     }
 
     private function removeTree(string $dir): void
