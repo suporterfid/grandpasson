@@ -23,6 +23,7 @@ final class AccessToken
         public readonly ?string $lastUsedAt,
         public readonly string $kind = self::KIND_ACCESS,
         public readonly ?string $label = null,
+        public readonly ?string $oauthClientId = null,
     ) {
     }
 

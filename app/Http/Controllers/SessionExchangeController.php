@@ -30,6 +30,7 @@ final class SessionExchangeController
         $clientId = (string) ($body['client_id'] ?? '');
         $clientSecret = (string) ($body['client_secret'] ?? '');
         $redirectUri = (string) ($body['redirect_uri'] ?? '');
+        $codeVerifier = isset($body['code_verifier']) ? (string) $body['code_verifier'] : null;
 
         $pdo = Connection::get($config['db']);
         $audit = new AuditLogger($pdo);
@@ -67,7 +68,7 @@ final class SessionExchangeController
             return;
         }
 
-        $userId = (new AuthCodeService($pdo))->consume($code, $clientId, $redirectUri);
+        $userId = (new AuthCodeService($pdo))->consume($code, $clientId, $redirectUri, $codeVerifier);
         if ($userId === null) {
             $audit->log('exchange.failure', null, null, Http::clientIp());
             Http::json(400, ['error' => 'invalid_grant']);

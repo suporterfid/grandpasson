@@ -71,7 +71,27 @@ JSON response (v0 fields plus v1 tenancy when configured):
 }
 ```
 
-Create your own app session from that payload. Public / secretless clients are rejected. Treat unknown keys as ignorable. See the v1 extension spec §6.2 for claim authority. When the user has no tenant membership, `tenant` is `null` and `tenants` / `groups` are empty arrays.
+Create your own app session from that payload. Public / secretless clients are rejected at `/session/exchange` — use the authorization_code + PKCE grant on `/oauth/token` instead (below). Treat unknown keys as ignorable. See the v1 extension spec §6.2 for claim authority. When the user has no tenant membership, `tenant` is `null` and `tenants` / `groups` are empty arrays.
+
+### Public clients (authorization_code + PKCE)
+
+Public RPs (`--type=public` when seeding) must send PKCE on login and redeem the broker code at `POST /oauth/token`:
+
+```text
+GET /login/google?client_id=spa-app&redirect_uri=…&state=…&code_challenge=…&code_challenge_method=S256
+```
+
+```bash
+curl -sS -X POST https://auth.example.com/oauth/token \
+  -H 'Content-Type: application/x-www-form-urlencoded' \
+  -d 'grant_type=authorization_code' \
+  -d 'client_id=spa-app' \
+  -d 'code=BROKER_CODE' \
+  -d 'redirect_uri=https://spa.example/cb' \
+  -d 'code_verifier=…'
+```
+
+Response includes `access_token`, `expires_in`, and `sub`. Confidential clients may still use `/session/exchange` (optional `code_verifier` if PKCE was used at login).
 
 ## 5. Service clients (v1 machine tokens)
 

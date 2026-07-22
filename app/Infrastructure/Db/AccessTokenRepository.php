@@ -37,6 +37,7 @@ final class AccessTokenRepository
             tenantId: $tenantId,
             ttlSeconds: $ttlSeconds,
             label: null,
+            oauthClientId: null,
         );
     }
 
@@ -66,6 +67,37 @@ final class AccessTokenRepository
             tenantId: $tenantId,
             ttlSeconds: $ttlSeconds,
             label: $label,
+            oauthClientId: null,
+        );
+    }
+
+    /**
+     * Mint an opaque access token for an RP oauth_client after authorization_code+PKCE (R11).
+     *
+     * @return array{token: string, record: AccessToken, expires_in: int}
+     */
+    public function issueForOauthUser(
+        string $oauthClientId,
+        string $subjectUserId,
+        string $scope,
+        ?string $aud,
+        int $ttlSeconds,
+        ?string $tenantId = null,
+    ): array {
+        if ($oauthClientId === '' || $subjectUserId === '') {
+            throw new \InvalidArgumentException('oauthClientId and subjectUserId are required');
+        }
+
+        return $this->persistNew(
+            kind: AccessToken::KIND_ACCESS,
+            clientId: null,
+            subjectUserId: $subjectUserId,
+            scope: $scope,
+            aud: $aud,
+            tenantId: $tenantId,
+            ttlSeconds: $ttlSeconds,
+            label: null,
+            oauthClientId: $oauthClientId,
         );
     }
 
@@ -81,6 +113,7 @@ final class AccessTokenRepository
         ?string $tenantId,
         int $ttlSeconds,
         ?string $label,
+        ?string $oauthClientId = null,
     ): array {
         if ($ttlSeconds <= 0) {
             throw new \InvalidArgumentException('ttlSeconds must be positive');
@@ -95,9 +128,9 @@ final class AccessTokenRepository
 
         $stmt = $this->pdo->prepare(
             'INSERT INTO access_tokens
-             (id, token_hash, kind, label, client_id, subject_user_id, scope, aud, tenant_id, expires_at, revoked_at, created_at, last_used_at)
+             (id, token_hash, kind, label, client_id, oauth_client_id, subject_user_id, scope, aud, tenant_id, expires_at, revoked_at, created_at, last_used_at)
              VALUES
-             (:id, :hash, :kind, :label, :client_id, :subject, :scope, :aud, :tenant_id, :expires_at, NULL, :created_at, NULL)'
+             (:id, :hash, :kind, :label, :client_id, :oauth_client_id, :subject, :scope, :aud, :tenant_id, :expires_at, NULL, :created_at, NULL)'
         );
         $stmt->execute([
             'id' => $id,
@@ -105,6 +138,7 @@ final class AccessTokenRepository
             'kind' => $kind,
             'label' => $label,
             'client_id' => $clientId,
+            'oauth_client_id' => $oauthClientId,
             'subject' => $subjectUserId,
             'scope' => $scope,
             'aud' => $aud,
@@ -127,6 +161,7 @@ final class AccessTokenRepository
             null,
             $kind,
             $label,
+            $oauthClientId,
         );
 
         return [
@@ -296,6 +331,9 @@ final class AccessTokenRepository
             $row['last_used_at'] !== null ? (string) $row['last_used_at'] : null,
             isset($row['kind']) ? (string) $row['kind'] : AccessToken::KIND_ACCESS,
             isset($row['label']) && $row['label'] !== null ? (string) $row['label'] : null,
+            isset($row['oauth_client_id']) && $row['oauth_client_id'] !== null
+                ? (string) $row['oauth_client_id']
+                : null,
         );
     }
 }

@@ -96,7 +96,7 @@ final class MigratorTest extends TestCase
         $migrator = new Migrator($this->pdo, $dir);
 
         $applied = $migrator->migrate();
-        $this->assertCount(15, $applied);
+        $this->assertCount(16, $applied);
         $this->assertSame([], $migrator->migrate());
 
         $tables = $this->pdo->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN);

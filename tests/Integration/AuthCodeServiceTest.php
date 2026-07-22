@@ -74,6 +74,23 @@ final class AuthCodeServiceTest extends TestCase
         $this->assertNull($svc->consume($raw, 'cid', 'https://evil.example/cb'));
     }
 
+    public function testPkceBoundCodeRequiresMatchingVerifier(): void
+    {
+        $pkce = \GrandpaSSOn\Infrastructure\Providers\Pkce::generate();
+        $svc = new AuthCodeService($this->pdo);
+        $raw = $svc->mint(
+            'u1',
+            'cid',
+            'https://app.example/cb',
+            $pkce['code_challenge'],
+            $pkce['code_challenge_method'],
+        );
+
+        $this->assertNull($svc->consume($raw, 'cid', 'https://app.example/cb'));
+        $this->assertNull($svc->consume($raw, 'cid', 'https://app.example/cb', 'bad-verifier'));
+        $this->assertSame('u1', $svc->consume($raw, 'cid', 'https://app.example/cb', $pkce['code_verifier']));
+    }
+
     private function rootPdo(): PDO
     {
         $host = getenv('TEST_DB_HOST') ?: '127.0.0.1';
