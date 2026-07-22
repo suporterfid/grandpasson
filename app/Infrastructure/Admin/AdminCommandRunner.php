@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace GrandpaSSOn\Infrastructure\Admin;
 
 use GrandpaSSOn\Domain\AccessToken;
+use GrandpaSSOn\Domain\PublishedSite;
 use GrandpaSSOn\Domain\Tenant;
 use GrandpaSSOn\Infrastructure\Audit\AuditLogger;
 use GrandpaSSOn\Infrastructure\Db\AccessTokenRepository;
+use GrandpaSSOn\Infrastructure\Db\PublishedSiteRepository;
 use GrandpaSSOn\Infrastructure\Db\ServiceClientRepository;
 use GrandpaSSOn\Infrastructure\Db\TenantRepository;
 use PDO;
@@ -23,6 +25,7 @@ final class AdminCommandRunner
         private readonly ServiceClientRepository $clients,
         private readonly AccessTokenRepository $tokens,
         private readonly AuditLogger $audit,
+        private readonly PublishedSiteRepository $sites,
     ) {
     }
 
@@ -34,6 +37,7 @@ final class AdminCommandRunner
             new ServiceClientRepository($pdo),
             new AccessTokenRepository($pdo),
             new AuditLogger($pdo),
+            new PublishedSiteRepository($pdo),
         );
     }
 
@@ -55,6 +59,8 @@ final class AdminCommandRunner
             'pat:create' => $this->patCreate($argv, $flags),
             'pat:list' => $this->patList($flags),
             'pat:revoke' => $this->patRevoke($argv, $flags),
+            'site:create' => $this->siteCreate($argv, $flags),
+            'site:set-visibility' => $this->siteSetVisibility($argv),
             default => throw new \InvalidArgumentException('Unknown verb: ' . $verb),
         };
     }
@@ -290,6 +296,52 @@ final class AdminCommandRunner
         $this->auditMutation('pat.revoke', $target);
 
         return ['ok' => true, 'revoked' => $count, 'target' => $target];
+    }
+
+    /**
+     * @param list<string> $argv
+     * @param array<string, string> $flags
+     * @return array<string, mixed>
+     */
+    private function siteCreate(array $argv, array $flags): array
+    {
+        $siteId = (string) ($argv[0] ?? '');
+        $name = (string) ($argv[1] ?? $siteId);
+        if ($siteId === '') {
+            throw new \InvalidArgumentException(
+                'Usage: site:create <site_id> [name] [--visibility=public|authenticated|private] [--tenant=slug|id]'
+            );
+        }
+        $visibility = (string) ($flags['visibility'] ?? PublishedSite::VIS_PUBLIC);
+        $tenantRef = (string) ($flags['tenant'] ?? '');
+        $tenantId = null;
+        if ($tenantRef !== '') {
+            $tenantId = $this->resolveTenant($tenantRef)->id;
+        }
+        $site = $this->sites->create($siteId, $name !== '' ? $name : $siteId, $visibility, $tenantId);
+        $this->auditMutation('site.create', $site->siteId);
+
+        return [
+            'ok' => true,
+            'site_id' => $site->siteId,
+            'name' => $site->name,
+            'visibility' => $site->visibility,
+            'tenant_id' => $site->tenantId,
+        ];
+    }
+
+    /** @param list<string> $argv @return array<string, mixed> */
+    private function siteSetVisibility(array $argv): array
+    {
+        $siteId = (string) ($argv[0] ?? '');
+        $visibility = (string) ($argv[1] ?? '');
+        if ($siteId === '' || $visibility === '') {
+            throw new \InvalidArgumentException('Usage: site:set-visibility <site_id> <public|authenticated|private>');
+        }
+        $this->sites->setVisibility($siteId, $visibility);
+        $this->auditMutation('site.set_visibility', $siteId . ':' . $visibility);
+
+        return ['ok' => true, 'site_id' => $siteId, 'visibility' => $visibility];
     }
 
     /** @return array<string, mixed> */
