@@ -25,12 +25,6 @@ final class SiteReaderController
     /** @param array<string, mixed> $config @param array<string, string> $params */
     public function login(array $config, array $params = []): void
     {
-        if (!RateLimitGate::allow('reader_login')) {
-            Http::json(429, ['error' => 'rate_limited']);
-
-            return;
-        }
-
         $siteId = (string) ($params['site_id'] ?? '');
         $providerName = strtolower((string) ($params['provider'] ?? ($_GET['provider'] ?? '')));
         if ($siteId === '' || !in_array($providerName, ['google', 'microsoft', 'github'], true)) {
@@ -40,6 +34,11 @@ final class SiteReaderController
         }
 
         $pdo = Connection::get($config['db']);
+        if (!RateLimitGate::allowLogin($pdo, 'reader_login')) {
+            Http::json(429, ['error' => 'rate_limited']);
+
+            return;
+        }
         $site = (new PublishedSiteRepository($pdo))->findBySiteId($siteId);
         if ($site === null || !$site->enabled) {
             Http::json(404, ['error' => 'site_not_found']);
@@ -77,14 +76,15 @@ final class SiteReaderController
     /** @param array<string, mixed> $config @param array<string, string> $params */
     public function callback(array $config, array $params = []): void
     {
-        if (!RateLimitGate::allow('reader_callback')) {
+        $siteId = (string) ($params['site_id'] ?? '');
+        $providerName = strtolower((string) ($params['provider'] ?? ''));
+        $pdo = Connection::get($config['db']);
+        if (!RateLimitGate::allowLogin($pdo, 'reader_callback')) {
             Http::json(429, ['error' => 'rate_limited']);
 
             return;
         }
 
-        $siteId = (string) ($params['site_id'] ?? '');
-        $providerName = strtolower((string) ($params['provider'] ?? ''));
         $oauth = $_SESSION['reader_oauth'] ?? null;
         if (!is_array($oauth)
             || $siteId === ''
@@ -103,7 +103,6 @@ final class SiteReaderController
             return;
         }
 
-        $pdo = Connection::get($config['db']);
         $audit = new AuditLogger($pdo);
         $sites = new PublishedSiteRepository($pdo);
         $site = $sites->findBySiteId($siteId);
