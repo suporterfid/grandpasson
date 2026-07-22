@@ -56,6 +56,7 @@ Set at least:
 | `DB_*` | MySQL credentials from cPanel |
 | `ALLOWED_EMAIL_DOMAINS` | Comma-separated; empty outside `APP_ENV=dev` refuses auto-create |
 | `MIGRATE_TOKEN` | Leave empty unless you intentionally expose HTTP migrate |
+| `ADMIN_API_TOKEN` | Leave empty to disable `/admin` UI + `/admin/api`; set a long random secret to enable |
 | `ACCESS_TOKEN_TTL_SECONDS` | v1 machine-token TTL (default `900`); clamped to max |
 | `ACCESS_TOKEN_TTL_MAX_SECONDS` | Hard max TTL (default `3600`) |
 | `AUDIT_RETENTION_DAYS` | Days to keep enriched audit rows (default `90`) |
@@ -96,6 +97,8 @@ php cron/admin.php --help
 php cron/admin.php tenant:create acme "Acme Corp"
 php cron/admin.php client:create-service "Agent" --scopes=kb:read --aud=workspace/abc
 ```
+
+Optional HTTP mirror (R12): set `ADMIN_API_TOKEN`, open `/admin`, or `POST /admin/api` with `X-Admin-Token` / `Authorization: Bearer`.
 
 See [client-integration.md](client-integration.md) §5 for machine-token flows. P0 completion checklist: [v1-p0-stop-line.md](v1-p0-stop-line.md).
 

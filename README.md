@@ -38,6 +38,8 @@ Stop with `make down`.
 | `POST` | `/oauth/token` | Service client credentials → opaque token |
 | `POST` | `/oauth/introspect` | Validate opaque token |
 | `POST` | `/oauth/revoke` | Revoke opaque token |
+| `GET` | `/admin` | Minimal admin UI (requires `ADMIN_API_TOKEN`) |
+| `POST` | `/admin/api` | Admin JSON API (Bearer / `X-Admin-Token`) |
 
 Admin (CLI, ships in zip): `php cron/admin.php …` — tenants, groups, service clients, access tokens, PATs.
 

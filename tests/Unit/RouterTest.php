@@ -91,6 +91,8 @@ final class RouterTest extends TestCase
         $this->assertContains('POST /oauth/introspect', $paths);
         $this->assertContains('POST /oauth/revoke', $paths);
         $this->assertContains('POST /session/exchange', $paths);
+        $this->assertContains('GET /admin', $paths);
+        $this->assertContains('POST /admin/api', $paths);
     }
 
     public function testOauthControllersApplyRateLimitGate(): void

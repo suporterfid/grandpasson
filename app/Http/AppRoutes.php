@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace GrandpaSSOn\Http;
 
+use GrandpaSSOn\Http\Controllers\AdminUiController;
 use GrandpaSSOn\Http\Controllers\CallbackController;
 use GrandpaSSOn\Http\Controllers\HealthController;
 use GrandpaSSOn\Http\Controllers\LoginController;
@@ -36,6 +37,8 @@ final class AppRoutes
             ['POST', '/oauth/token', OAuthTokenController::class, 'token'],
             ['POST', '/oauth/introspect', OAuthIntrospectController::class, 'introspect'],
             ['POST', '/oauth/revoke', OAuthRevokeController::class, 'revoke'],
+            ['GET', '/admin', AdminUiController::class, 'index'],
+            ['POST', '/admin/api', AdminUiController::class, 'api'],
         ];
     }
 

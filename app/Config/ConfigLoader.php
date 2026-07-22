@@ -14,6 +14,7 @@ final class ConfigLoader
      *   db: array{host: string, port: int, name: string, user: string, password: string},
      *   allowed_email_domains: list<string>,
      *   migrate_token: string,
+     *   admin_api_token: string,
      *   tokens: array{access_ttl_seconds: int, access_ttl_max_seconds: int},
      *   audit: array{retention_days: int},
      *   providers: array<string, array{client_id: string, client_secret: string, redirect_uri: string, scopes: list<string>, tenant_id?: string}>
@@ -101,6 +102,7 @@ final class ConfigLoader
             ],
             'allowed_email_domains' => $domains,
             'migrate_token' => $env['MIGRATE_TOKEN'] ?? '',
+            'admin_api_token' => $env['ADMIN_API_TOKEN'] ?? '',
             'tokens' => [
                 'access_ttl_seconds' => $tokenTtl,
                 'access_ttl_max_seconds' => $tokenTtlMax,
@@ -151,6 +153,7 @@ final class ConfigLoader
             'DB_PASSWORD',
             'ALLOWED_EMAIL_DOMAINS',
             'MIGRATE_TOKEN',
+            'ADMIN_API_TOKEN',
             'ACCESS_TOKEN_TTL_SECONDS',
             'ACCESS_TOKEN_TTL_MAX_SECONDS',
             'AUDIT_RETENTION_DAYS',
