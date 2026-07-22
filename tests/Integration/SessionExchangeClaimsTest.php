@@ -148,6 +148,42 @@ final class SessionExchangeClaimsTest extends TestCase
         $this->assertSame('beta', $second['tenant']['slug']);
     }
 
+    public function testUnknownClientAndBadSecretBothReturnInvalidClient(): void
+    {
+        $userId = $this->seedUser('authz@example.com', 'Authz', null);
+        $code = (new AuthCodeService($this->pdo))->mint($userId, 'rp-app', 'https://app.example/cb');
+
+        Connection::reset();
+        http_response_code(200);
+        $_SERVER['CONTENT_TYPE'] = 'application/x-www-form-urlencoded';
+        $_POST = [
+            'code' => $code,
+            'client_id' => 'no-such-client',
+            'client_secret' => 's3cret',
+            'redirect_uri' => 'https://app.example/cb',
+        ];
+        ob_start();
+        (new SessionExchangeController())->exchange($this->config);
+        $unknown = json_decode((string) ob_get_clean(), true);
+        $this->assertSame(401, http_response_code());
+        $this->assertSame(['error' => 'invalid_client'], $unknown);
+
+        $code2 = (new AuthCodeService($this->pdo))->mint($userId, 'rp-app', 'https://app.example/cb');
+        Connection::reset();
+        http_response_code(200);
+        $_POST = [
+            'code' => $code2,
+            'client_id' => 'rp-app',
+            'client_secret' => 'wrong-secret',
+            'redirect_uri' => 'https://app.example/cb',
+        ];
+        ob_start();
+        (new SessionExchangeController())->exchange($this->config);
+        $bad = json_decode((string) ob_get_clean(), true);
+        $this->assertSame(401, http_response_code());
+        $this->assertSame(['error' => 'invalid_client'], $bad);
+    }
+
     /** @return array<string, mixed> */
     private function exchangeForUser(string $userId, ?string $tenantHint = null): array
     {

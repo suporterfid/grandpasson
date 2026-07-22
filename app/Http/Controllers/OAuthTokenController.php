@@ -6,8 +6,8 @@ namespace GrandpaSSOn\Http\Controllers;
 
 use GrandpaSSOn\Infrastructure\Audit\AuditLogger;
 use GrandpaSSOn\Infrastructure\Auth\AuthCodeService;
-use GrandpaSSOn\Infrastructure\Auth\ClientSecretHasher;
 use GrandpaSSOn\Infrastructure\Auth\JwtAccessTokenFactory;
+use GrandpaSSOn\Infrastructure\Auth\OAuthClientAuthenticator;
 use GrandpaSSOn\Infrastructure\Auth\ServiceClientAuthenticator;
 use GrandpaSSOn\Infrastructure\Db\AccessTokenRepository;
 use GrandpaSSOn\Infrastructure\Db\Connection;
@@ -199,25 +199,26 @@ final class OAuthTokenController
             return;
         }
 
-        $client = (new OAuthClientRepository($pdo))->findByClientId($clientId);
-        if ($client === null || !$client->enabled) {
-            $audit->record(
-                action: 'token.issue',
-                result: AuditLogger::RESULT_FAILURE,
-                actorType: AuditLogger::ACTOR_SERVICE,
-                actorId: $clientId !== '' ? $clientId : null,
-                clientId: $clientId !== '' ? $clientId : null,
-                ip: Http::clientIp(),
-            );
-            Http::json(401, ['error' => 'invalid_client']);
+        $repo = new OAuthClientRepository($pdo);
+        $lookedUp = $repo->findByClientId($clientId);
 
-            return;
-        }
+        // Public clients: no secret. Unknown / confidential: always verify (dummy hash if needed).
+        if ($lookedUp !== null && !$lookedUp->isConfidential()) {
+            if ($clientSecret !== '') {
+                $audit->record(
+                    action: 'token.issue',
+                    result: AuditLogger::RESULT_FAILURE,
+                    actorType: AuditLogger::ACTOR_SERVICE,
+                    actorId: $clientId,
+                    clientId: $clientId,
+                    target: 'public_with_secret',
+                    ip: Http::clientIp(),
+                );
+                Http::json(401, ['error' => 'invalid_client']);
 
-        if ($client->isConfidential()) {
-            if ($client->clientSecretHash === null || $client->clientSecretHash === ''
-                || !ClientSecretHasher::verify($clientSecret, $client->clientSecretHash)
-            ) {
+                return;
+            }
+            if (!$lookedUp->enabled) {
                 $audit->record(
                     action: 'token.issue',
                     result: AuditLogger::RESULT_FAILURE,
@@ -230,20 +231,22 @@ final class OAuthTokenController
 
                 return;
             }
-        } elseif ($clientSecret !== '') {
-            // Public clients must not present a secret.
-            $audit->record(
-                action: 'token.issue',
-                result: AuditLogger::RESULT_FAILURE,
-                actorType: AuditLogger::ACTOR_SERVICE,
-                actorId: $clientId,
-                clientId: $clientId,
-                target: 'public_with_secret',
-                ip: Http::clientIp(),
-            );
-            Http::json(401, ['error' => 'invalid_client']);
+            $client = $lookedUp;
+        } else {
+            $client = (new OAuthClientAuthenticator($repo))->authenticateConfidential($clientId, $clientSecret);
+            if ($client === null) {
+                $audit->record(
+                    action: 'token.issue',
+                    result: AuditLogger::RESULT_FAILURE,
+                    actorType: AuditLogger::ACTOR_SERVICE,
+                    actorId: $clientId !== '' ? $clientId : null,
+                    clientId: $clientId !== '' ? $clientId : null,
+                    ip: Http::clientIp(),
+                );
+                Http::json(401, ['error' => 'invalid_client']);
 
-            return;
+                return;
+            }
         }
 
         if (!$client->allowsRedirectUri($redirectUri)) {
