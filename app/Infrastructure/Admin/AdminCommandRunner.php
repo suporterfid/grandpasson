@@ -146,7 +146,7 @@ final class AdminCommandRunner
         $clientId = (string) ($flags['client-id'] ?? ('svc_' . bin2hex(random_bytes(6))));
         $secret = rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=');
         $client = $this->clients->create($clientId, $name, $secret, $scopes, $aud, true);
-        $this->auditMutation('client.create_service', $client->clientId);
+        $this->auditMutation('client.create_service', $client->clientId, $client->clientId);
 
         return [
             'ok' => true,
@@ -166,7 +166,7 @@ final class AdminCommandRunner
             throw new \InvalidArgumentException('Usage: client:rotate-secret <client_id>');
         }
         $secret = $this->clients->rotateSecret($clientId);
-        $this->auditMutation('client.rotate_secret', $clientId);
+        $this->auditMutation('client.rotate_secret', $clientId, $clientId);
 
         return ['ok' => true, 'client_id' => $clientId, 'client_secret' => $secret];
     }
@@ -212,20 +212,30 @@ final class AdminCommandRunner
         if ($tokenId !== '') {
             $count = $this->tokens->revokeById($tokenId);
             $target = 'token_id:' . $tokenId;
+            $auditClient = null;
         } elseif ($client !== '') {
             $count = $this->tokens->revokeByClientId($client);
             $target = 'client:' . $client;
+            $auditClient = $client;
         } else {
             $count = $this->tokens->revokeBySubjectId($subject);
             $target = 'subject:' . $subject;
+            $auditClient = null;
         }
-        $this->auditMutation('token.revoke.admin', $target);
+        $this->auditMutation('token.revoke.admin', $target, $auditClient);
 
         return ['ok' => true, 'revoked' => $count, 'target' => $target];
     }
 
     private function resolveTenant(string $ref): \GrandpaSSOn\Domain\Tenant
     {
+        // Prefer UUID when the ref looks like one, so a slug equal to another id cannot shadow.
+        if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $ref) === 1) {
+            $byId = $this->tenants->findById($ref);
+            if ($byId !== null) {
+                return $byId;
+            }
+        }
         $bySlug = $this->tenants->findBySlug($ref);
         if ($bySlug !== null) {
             return $bySlug;
@@ -246,7 +256,7 @@ final class AdminCommandRunner
         }
     }
 
-    private function auditMutation(string $action, string $target): void
+    private function auditMutation(string $action, string $target, ?string $clientId = null): void
     {
         $this->audit->record(
             action: $action,
@@ -254,6 +264,7 @@ final class AdminCommandRunner
             actorType: AuditLogger::ACTOR_ADMIN,
             actorId: 'cli',
             target: $target,
+            clientId: $clientId,
         );
     }
 }
