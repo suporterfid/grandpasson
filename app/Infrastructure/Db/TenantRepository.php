@@ -186,6 +186,9 @@ final class TenantRepository
         if ($group === null) {
             throw new \InvalidArgumentException('Unknown group_id');
         }
+        if (!$this->isTenantMember($group->tenantId, $userId)) {
+            throw new \InvalidArgumentException('user must be a tenant member before joining a group');
+        }
 
         $now = gmdate('Y-m-d H:i:s');
         try {
@@ -204,6 +207,19 @@ final class TenantRepository
             }
             throw $e;
         }
+    }
+
+    public function isTenantMember(string $tenantId, string $userId): bool
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT 1 FROM tenant_members WHERE tenant_id = :tenant_id AND user_id = :user_id LIMIT 1'
+        );
+        $stmt->execute([
+            'tenant_id' => $tenantId,
+            'user_id' => $userId,
+        ]);
+
+        return $stmt->fetchColumn() !== false;
     }
 
     /**
@@ -245,7 +261,10 @@ final class TenantRepository
 
     private function isDuplicateKey(PDOException $e): bool
     {
-        return $e->getCode() === '23000' || str_contains($e->getMessage(), 'Duplicate');
+        // MySQL duplicate-key is errno 1062; do not treat other 23000 errors (e.g. FK) as duplicates.
+        $driverCode = isset($e->errorInfo[1]) ? (int) $e->errorInfo[1] : 0;
+
+        return $driverCode === 1062 || str_contains($e->getMessage(), 'Duplicate entry');
     }
 
     /** @param array<string, mixed> $row */

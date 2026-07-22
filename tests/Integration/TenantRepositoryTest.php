@@ -123,6 +123,34 @@ final class TenantRepositoryTest extends TestCase
         $this->tenants->addMember($tenant->id, $user->id, 'superuser');
     }
 
+    public function testGroupMemberRequiresTenantMembership(): void
+    {
+        $suffix = bin2hex(random_bytes(4));
+        $outsider = $this->provisionUser('out-' . $suffix . '@example.com', 'out-' . $suffix);
+        $tenant = $this->tenants->create('gated-' . $suffix, 'Gated ' . $suffix);
+        $group = $this->tenants->createGroup($tenant->id, 'editors', 'Editors');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('tenant member');
+        $this->tenants->addGroupMember($group->id, $outsider->id);
+    }
+
+    public function testUnknownUserMembershipSurfacesFkNotDuplicate(): void
+    {
+        $suffix = bin2hex(random_bytes(4));
+        $tenant = $this->tenants->create('fk-' . $suffix, 'FK ' . $suffix);
+        $missingUserId = '00000000-0000-4000-8000-000000000099';
+
+        try {
+            $this->tenants->addMember($tenant->id, $missingUserId, Tenant::ROLE_MEMBER);
+            $this->fail('Expected PDOException for missing user FK');
+        } catch (InvalidArgumentException $e) {
+            $this->fail('FK failure must not be reported as duplicate membership: ' . $e->getMessage());
+        } catch (\PDOException $e) {
+            $this->assertSame(1452, (int) ($e->errorInfo[1] ?? 0));
+        }
+    }
+
     public function testTenancyTablesCoexistWithV0Schema(): void
     {
         $required = [
