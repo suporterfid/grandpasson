@@ -154,6 +154,8 @@ curl -sS -X POST https://auth.example.com/me/pats/<token_id>/revoke -b 'AUTHSESS
   -d '{"csrf":"…"}'
 ```
 
+Self-service creation only allows scopes a subject may hold personally (`openid`, `profile`, `email`, `tenant:read`, `kb:read`, `publish:read`) — `400 invalid_scope` otherwise. `kb:write`, `tasks:callback`, and `tasks:write` (§6.3: trusted services only) require the admin CLI below.
+
 Admin break-glass CLI remains available:
 
 ```bash

@@ -78,4 +78,37 @@ final class ScopeVocabulary
 
         return $unknown;
     }
+
+    /**
+     * Scopes a subject may self-issue onto a PAT (R10). Excludes scopes §6.3
+     * reserves for trusted services (`kb:write`, `tasks:callback`, `tasks:write`).
+     * Admin CLI `pat:create` is unaffected — it validates against all() for break-glass.
+     *
+     * @return list<string>
+     */
+    public static function selfServiceScopes(): array
+    {
+        return array_values(array_diff(self::all(), [
+            self::KB_WRITE,
+            self::TASKS_CALLBACK,
+            self::TASKS_WRITE,
+        ]));
+    }
+
+    /**
+     * @param list<string> $scopes
+     * @return list<string> Scopes not allowed for self-service PAT issuance (unknown or reserved)
+     */
+    public static function disallowedForSelfService(array $scopes): array
+    {
+        $allowed = self::selfServiceScopes();
+        $disallowed = [];
+        foreach ($scopes as $scope) {
+            if (!in_array($scope, $allowed, true)) {
+                $disallowed[] = $scope;
+            }
+        }
+
+        return $disallowed;
+    }
 }

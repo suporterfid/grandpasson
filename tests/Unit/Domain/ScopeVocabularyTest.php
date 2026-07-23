@@ -25,4 +25,23 @@ final class ScopeVocabularyTest extends TestCase
         $this->assertContains('tasks:write', $machine);
         $this->assertNotContains('openid', $machine);
     }
+
+    public function testSelfServiceScopesExcludeTrustedServiceOnlyScopes(): void
+    {
+        $selfService = ScopeVocabulary::selfServiceScopes();
+        $this->assertContains(ScopeVocabulary::KB_READ, $selfService);
+        $this->assertContains(ScopeVocabulary::TENANT_READ, $selfService);
+        $this->assertNotContains(ScopeVocabulary::KB_WRITE, $selfService);
+        $this->assertNotContains(ScopeVocabulary::TASKS_CALLBACK, $selfService);
+        $this->assertNotContains(ScopeVocabulary::TASKS_WRITE, $selfService);
+    }
+
+    public function testDisallowedForSelfServiceFlagsReservedAndUnknownScopes(): void
+    {
+        $this->assertSame([], ScopeVocabulary::disallowedForSelfService(['kb:read', 'tenant:read']));
+        $this->assertSame(
+            ['kb:write', 'nope:scope'],
+            ScopeVocabulary::disallowedForSelfService(['kb:read', 'kb:write', 'nope:scope'])
+        );
+    }
 }
