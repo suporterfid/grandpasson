@@ -33,7 +33,7 @@ final class LoginController
     public function start(array $config, array $params = []): void
     {
         $pdo = Connection::get($config['db']);
-        if (!RateLimitGate::allowLogin($pdo, 'login')) {
+        if (!RateLimitGate::allowLogin($pdo, 'login', $config)) {
             Http::json(429, ['error' => 'rate_limited']);
 
             return;

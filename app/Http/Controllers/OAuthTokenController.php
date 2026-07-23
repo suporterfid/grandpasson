@@ -23,7 +23,7 @@ final class OAuthTokenController
     public function token(array $config, array $params = []): void
     {
         $pdo = Connection::get($config['db']);
-        if (!RateLimitGate::allowDb($pdo, 'oauth_token')) {
+        if (!RateLimitGate::allowOauth($pdo, 'oauth_token', $config)) {
             Http::json(429, ['error' => 'rate_limited']);
 
             return;

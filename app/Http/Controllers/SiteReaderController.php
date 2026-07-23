@@ -33,7 +33,7 @@ final class SiteReaderController
         }
 
         $pdo = Connection::get($config['db']);
-        if (!RateLimitGate::allowLogin($pdo, 'reader_login_chooser')) {
+        if (!RateLimitGate::allowLogin($pdo, 'reader_login_chooser', $config)) {
             Http::json(429, ['error' => 'rate_limited']);
 
             return;
@@ -83,7 +83,7 @@ final class SiteReaderController
         }
 
         $pdo = Connection::get($config['db']);
-        if (!RateLimitGate::allowLogin($pdo, 'reader_login')) {
+        if (!RateLimitGate::allowLogin($pdo, 'reader_login', $config)) {
             Http::json(429, ['error' => 'rate_limited']);
 
             return;
@@ -128,7 +128,7 @@ final class SiteReaderController
         $siteId = (string) ($params['site_id'] ?? '');
         $providerName = strtolower((string) ($params['provider'] ?? ''));
         $pdo = Connection::get($config['db']);
-        if (!RateLimitGate::allowLogin($pdo, 'reader_callback')) {
+        if (!RateLimitGate::allowLogin($pdo, 'reader_callback', $config)) {
             Http::json(429, ['error' => 'rate_limited']);
 
             return;

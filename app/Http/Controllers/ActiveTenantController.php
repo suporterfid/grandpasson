@@ -25,7 +25,7 @@ final class ActiveTenantController
         }
 
         $pdo = Connection::get($config['db']);
-        if (!RateLimitGate::allowDb($pdo, 'me_active_tenant')) {
+        if (!RateLimitGate::allowOauth($pdo, 'me_active_tenant', $config)) {
             Http::json(429, ['error' => 'rate_limited']);
 
             return;
@@ -66,7 +66,7 @@ final class ActiveTenantController
         }
 
         $pdo = Connection::get($config['db']);
-        if (!RateLimitGate::allowDb($pdo, 'me_active_tenant_write')) {
+        if (!RateLimitGate::allowOauth($pdo, 'me_active_tenant_write', $config)) {
             Http::json(429, ['error' => 'rate_limited']);
 
             return;

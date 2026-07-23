@@ -86,6 +86,48 @@ final class LoginDbRateLimitTest extends TestCase
         $this->assertSame('rate_limited', $decoded['error'] ?? null);
     }
 
+    public function testLoginHonorsConfiguredRateLimit(): void
+    {
+        $config = [
+            'db' => [
+                'host' => getenv('TEST_DB_HOST') ?: '127.0.0.1',
+                'port' => (int) (getenv('TEST_DB_PORT') ?: '3306'),
+                'name' => $this->dbName,
+                'user' => getenv('TEST_DB_USER') ?: 'root',
+                'password' => getenv('TEST_DB_PASS') !== false && getenv('TEST_DB_PASS') !== ''
+                    ? (string) getenv('TEST_DB_PASS')
+                    : 'devrootpass',
+            ],
+            'app_env' => 'dev',
+            'allowed_email_domains' => [],
+            'providers' => [],
+            'rate_limit' => ['login_max' => 2, 'login_window_seconds' => 60, 'login_lockout_seconds' => 30],
+        ];
+
+        $_SERVER['REMOTE_ADDR'] = '198.51.100.45';
+        $_GET = [
+            'client_id' => 'any',
+            'redirect_uri' => 'https://app.example/cb',
+            'state' => 's',
+        ];
+
+        for ($i = 0; $i < 2; $i++) {
+            http_response_code(200);
+            ob_start();
+            (new LoginController())->start($config, ['provider' => 'google']);
+            ob_get_clean();
+            $this->assertNotSame(429, http_response_code());
+        }
+
+        http_response_code(200);
+        ob_start();
+        (new LoginController())->start($config, ['provider' => 'google']);
+        $raw = (string) ob_get_clean();
+        $this->assertSame(429, http_response_code());
+        $decoded = json_decode($raw, true);
+        $this->assertSame('rate_limited', $decoded['error'] ?? null);
+    }
+
     private function rootPdo(): PDO
     {
         $host = getenv('TEST_DB_HOST') ?: '127.0.0.1';

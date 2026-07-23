@@ -27,7 +27,7 @@ final class UserPatController
         }
 
         $pdo = Connection::get($config['db']);
-        if (!RateLimitGate::allowDb($pdo, 'me_pats')) {
+        if (!RateLimitGate::allowOauth($pdo, 'me_pats', $config)) {
             Http::json(429, ['error' => 'rate_limited']);
 
             return;
@@ -54,7 +54,7 @@ final class UserPatController
         }
 
         $pdo = Connection::get($config['db']);
-        if (!RateLimitGate::allowDb($pdo, 'me_pats_write')) {
+        if (!RateLimitGate::allowOauth($pdo, 'me_pats_write', $config)) {
             Http::json(429, ['error' => 'rate_limited']);
 
             return;
@@ -138,7 +138,7 @@ final class UserPatController
         }
 
         $pdo = Connection::get($config['db']);
-        if (!RateLimitGate::allowDb($pdo, 'me_pats_write')) {
+        if (!RateLimitGate::allowOauth($pdo, 'me_pats_write', $config)) {
             Http::json(429, ['error' => 'rate_limited']);
 
             return;

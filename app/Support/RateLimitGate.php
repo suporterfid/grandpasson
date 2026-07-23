@@ -55,11 +55,41 @@ final class RateLimitGate
     }
 
     /**
-     * Login / reader-login / callback throttle (S9): DB counters with IP lockout.
-     * 15 attempts / 5 minutes; after the limit, lock out for 15 minutes.
+     * DB-backed throttle for oauth/machine-token endpoints, using §11 config knobs
+     * (RATE_LIMIT_OAUTH_MAX / RATE_LIMIT_OAUTH_WINDOW_SECONDS) with the prior
+     * hardcoded values (60 / 60) as defaults.
+     *
+     * @param array<string, mixed> $config
      */
-    public static function allowLogin(PDO $pdo, string $route): bool
+    public static function allowOauth(PDO $pdo, string $route, array $config = []): bool
     {
-        return self::allowDb($pdo, $route, 15, 300, 900);
+        $rateLimit = $config['rate_limit'] ?? [];
+
+        return self::allowDb(
+            $pdo,
+            $route,
+            (int) ($rateLimit['oauth_max'] ?? 60),
+            (int) ($rateLimit['oauth_window_seconds'] ?? 60),
+        );
+    }
+
+    /**
+     * Login / reader-login / callback throttle (S9): DB counters with IP lockout,
+     * configurable via §11 knobs (RATE_LIMIT_LOGIN_MAX / _WINDOW_SECONDS / _LOCKOUT_SECONDS)
+     * with the prior hardcoded values (15 attempts / 300s window / 900s lockout) as defaults.
+     *
+     * @param array<string, mixed> $config
+     */
+    public static function allowLogin(PDO $pdo, string $route, array $config = []): bool
+    {
+        $rateLimit = $config['rate_limit'] ?? [];
+
+        return self::allowDb(
+            $pdo,
+            $route,
+            (int) ($rateLimit['login_max'] ?? 15),
+            (int) ($rateLimit['login_window_seconds'] ?? 300),
+            (int) ($rateLimit['login_lockout_seconds'] ?? 900),
+        );
     }
 }

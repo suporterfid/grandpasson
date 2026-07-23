@@ -61,6 +61,11 @@ Set at least:
 | `ACCESS_TOKEN_TTL_SECONDS` | v1 machine-token TTL (default `900`); clamped to max |
 | `ACCESS_TOKEN_TTL_MAX_SECONDS` | Hard max TTL (default `3600`) |
 | `AUDIT_RETENTION_DAYS` | Days to keep enriched audit rows (default `90`) |
+| `RATE_LIMIT_OAUTH_MAX` | DB-backed throttle max attempts for oauth/machine-token endpoints (default `60`) |
+| `RATE_LIMIT_OAUTH_WINDOW_SECONDS` | Window for `RATE_LIMIT_OAUTH_MAX` (default `60`) |
+| `RATE_LIMIT_LOGIN_MAX` | Max attempts for login / reader-login / callback before lockout (default `15`) |
+| `RATE_LIMIT_LOGIN_WINDOW_SECONDS` | Window for `RATE_LIMIT_LOGIN_MAX` (default `300`) |
+| `RATE_LIMIT_LOGIN_LOCKOUT_SECONDS` | Lockout duration once the login limit trips (default `900`) |
 | `JWT_ACCESS_TOKEN_ENABLED` | `true` to mint optional companion JWTs on `/oauth/token` |
 | `JWT_HMAC_SECRET` | HS256 fallback when no RS256 key is active |
 | `JWT_KEY_ENCRYPTION_SECRET` | AES-256-GCM key wrapping RS256 private PEMs at rest (required in `prod` before `jwt:key-rotate`) |

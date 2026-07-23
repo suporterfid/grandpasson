@@ -124,6 +124,57 @@ final class DbRateLimiterTest extends TestCase
         $this->assertSame('rate_limited', $decoded['error'] ?? null);
     }
 
+    public function testOauthTokenEndpointHonorsConfiguredRateLimit(): void
+    {
+        (new ServiceClientRepository($this->pdo))->create(
+            'svc-rl-cfg',
+            'RL Config Client',
+            'rl-secret',
+            ['kb:read'],
+            null,
+            true,
+        );
+
+        $config = [
+            'db' => [
+                'host' => getenv('TEST_DB_HOST') ?: '127.0.0.1',
+                'port' => (int) (getenv('TEST_DB_PORT') ?: '3306'),
+                'name' => $this->dbName,
+                'user' => getenv('TEST_DB_USER') ?: 'root',
+                'password' => getenv('TEST_DB_PASS') !== false && getenv('TEST_DB_PASS') !== ''
+                    ? (string) getenv('TEST_DB_PASS')
+                    : 'devrootpass',
+            ],
+            'tokens' => ['access_ttl_seconds' => 900, 'access_ttl_max_seconds' => 3600],
+            'rate_limit' => ['oauth_max' => 2, 'oauth_window_seconds' => 60],
+        ];
+
+        $_SERVER['REMOTE_ADDR'] = '203.0.113.100';
+        $_SERVER['CONTENT_TYPE'] = 'application/x-www-form-urlencoded';
+        $_POST = [
+            'grant_type' => 'client_credentials',
+            'client_id' => 'svc-rl-cfg',
+            'client_secret' => 'rl-secret',
+            'scope' => 'kb:read',
+        ];
+
+        for ($i = 0; $i < 2; $i++) {
+            http_response_code(200);
+            ob_start();
+            (new OAuthTokenController())->token($config);
+            ob_get_clean();
+            $this->assertSame(200, http_response_code());
+        }
+
+        http_response_code(200);
+        ob_start();
+        (new OAuthTokenController())->token($config);
+        $raw = (string) ob_get_clean();
+        $this->assertSame(429, http_response_code());
+        $decoded = json_decode($raw, true);
+        $this->assertSame('rate_limited', $decoded['error'] ?? null);
+    }
+
     private function rootPdo(): PDO
     {
         $host = getenv('TEST_DB_HOST') ?: '127.0.0.1';
