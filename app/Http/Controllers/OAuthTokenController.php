@@ -106,11 +106,7 @@ final class OAuthTokenController
             return;
         }
 
-        if (
-            $audience !== ''
-            && $client->defaultAudience !== null
-            && $audience !== $client->defaultAudience
-        ) {
+        if ($audience !== '' && $audience !== $client->defaultAudience) {
             $audit->record(
                 action: 'token.issue',
                 result: AuditLogger::RESULT_FAILURE,
@@ -128,7 +124,9 @@ final class OAuthTokenController
             return;
         }
 
-        $aud = $audience !== '' ? $audience : $client->defaultAudience;
+        // A client with no configured default_audience cannot narrow to a caller-chosen
+        // audience (that would defeat audience-scoping) — it only ever gets aud=null.
+        $aud = $client->defaultAudience;
         $ttl = AccessTokenTtl::resolve($config['tokens'] ?? []);
         $issued = (new AccessTokenRepository($pdo))->issue(
             $clientId,

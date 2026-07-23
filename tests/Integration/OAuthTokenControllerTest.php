@@ -182,6 +182,52 @@ final class OAuthTokenControllerTest extends TestCase
         $this->assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM access_tokens')->fetchColumn());
     }
 
+    public function testRejectsRequestedAudienceWhenClientHasNoDefault(): void
+    {
+        (new ServiceClientRepository($this->pdo))->create(
+            'svc-no-aud',
+            'Audience-agnostic client',
+            'no-aud-secret',
+            ['kb:read'],
+            null,
+            true,
+        );
+
+        $payload = $this->postToken([
+            'grant_type' => 'client_credentials',
+            'client_id' => 'svc-no-aud',
+            'client_secret' => 'no-aud-secret',
+            'scope' => 'kb:read',
+            'audience' => 'workspace/anything',
+        ]);
+
+        $this->assertSame(400, http_response_code());
+        $this->assertSame('invalid_request', $payload['error']);
+        $this->assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM access_tokens')->fetchColumn());
+    }
+
+    public function testIssuesNullAudienceForClientWithNoDefaultAndNoRequestedAudience(): void
+    {
+        (new ServiceClientRepository($this->pdo))->create(
+            'svc-no-aud-2',
+            'Audience-agnostic client',
+            'no-aud-secret-2',
+            ['kb:read'],
+            null,
+            true,
+        );
+
+        $payload = $this->postToken([
+            'grant_type' => 'client_credentials',
+            'client_id' => 'svc-no-aud-2',
+            'client_secret' => 'no-aud-secret-2',
+            'scope' => 'kb:read',
+        ]);
+
+        $this->assertSame(200, http_response_code());
+        $this->assertNull($payload['aud']);
+    }
+
     /** @param array<string, string> $fields @return array<string, mixed> */
     private function postToken(array $fields): array
     {
