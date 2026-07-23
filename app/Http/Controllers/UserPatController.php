@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace GrandpaSSOn\Http\Controllers;
 
 use GrandpaSSOn\Domain\AccessToken;
+use GrandpaSSOn\Domain\ScopeVocabulary;
 use GrandpaSSOn\Infrastructure\Audit\AuditLogger;
 use GrandpaSSOn\Infrastructure\Db\AccessTokenRepository;
 use GrandpaSSOn\Infrastructure\Db\Connection;
@@ -79,6 +80,24 @@ final class UserPatController
         }
         if ($scopes === []) {
             Http::json(400, ['error' => 'invalid_request', 'message' => 'scopes is required']);
+
+            return;
+        }
+
+        $disallowed = ScopeVocabulary::disallowedForSelfService($scopes);
+        if ($disallowed !== []) {
+            (new AuditLogger($pdo))->record(
+                'pat.create',
+                AuditLogger::RESULT_FAILURE,
+                AuditLogger::ACTOR_SUBJECT,
+                $userId,
+                target: 'invalid_scope',
+                ip: Http::clientIp(),
+            );
+            Http::json(400, [
+                'error' => 'invalid_scope',
+                'message' => 'Scope(s) not allowed for self-service PATs: ' . implode(', ', $disallowed),
+            ]);
 
             return;
         }

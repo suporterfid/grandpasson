@@ -117,6 +117,32 @@ final class UserPatSelfServiceTest extends TestCase
         $this->assertSame(0, $after['count']);
     }
 
+    public function testRejectsReservedAndUnknownScopes(): void
+    {
+        $userId = $this->seedUser('scoped@example.com');
+        $_SESSION['user_id'] = $userId;
+
+        foreach (['kb:write', 'tasks:callback', 'tasks:write', 'nope:scope'] as $badScope) {
+            http_response_code(200);
+            $this->withJsonBody([
+                'csrf' => Csrf::token(),
+                'scopes' => 'kb:read,' . $badScope,
+                'ttl_days' => 7,
+            ]);
+            ob_start();
+            (new UserPatController())->create($this->config);
+            $raw = (string) ob_get_clean();
+            $this->assertSame(400, http_response_code(), 'scope ' . $badScope . ' should be rejected');
+            $decoded = json_decode($raw, true);
+            $this->assertSame('invalid_scope', $decoded['error'] ?? null);
+        }
+
+        ob_start();
+        (new UserPatController())->list($this->config);
+        $listed = json_decode((string) ob_get_clean(), true);
+        $this->assertSame(0, $listed['count'], 'no PAT should have been issued for rejected scopes');
+    }
+
     public function testCannotRevokeAnotherSubjectsPat(): void
     {
         $owner = $this->seedUser('owner@example.com');
