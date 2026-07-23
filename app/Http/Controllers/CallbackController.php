@@ -20,7 +20,7 @@ final class CallbackController
     public function handle(array $config, array $params = []): void
     {
         $pdo = Connection::get($config['db']);
-        if (!RateLimitGate::allowLogin($pdo, 'callback')) {
+        if (!RateLimitGate::allowLogin($pdo, 'callback', $config)) {
             Http::json(429, ['error' => 'rate_limited']);
 
             return;

@@ -81,6 +81,31 @@ ENV);
         $this->assertSame(900, $config['tokens']['access_ttl_seconds']);
         $this->assertSame(3600, $config['tokens']['access_ttl_max_seconds']);
         $this->assertSame(90, $config['audit']['retention_days']);
+        $this->assertSame(60, $config['rate_limit']['oauth_max']);
+        $this->assertSame(60, $config['rate_limit']['oauth_window_seconds']);
+        $this->assertSame(15, $config['rate_limit']['login_max']);
+        $this->assertSame(300, $config['rate_limit']['login_window_seconds']);
+        $this->assertSame(900, $config['rate_limit']['login_lockout_seconds']);
+    }
+
+    public function testRateLimitOverrides(): void
+    {
+        $this->writeEnv($this->minimalEnv() . <<<'ENV'
+
+RATE_LIMIT_OAUTH_MAX=10
+RATE_LIMIT_OAUTH_WINDOW_SECONDS=30
+RATE_LIMIT_LOGIN_MAX=5
+RATE_LIMIT_LOGIN_WINDOW_SECONDS=120
+RATE_LIMIT_LOGIN_LOCKOUT_SECONDS=600
+ENV);
+
+        $config = ConfigLoader::load($this->tmpEnv);
+
+        $this->assertSame(10, $config['rate_limit']['oauth_max']);
+        $this->assertSame(30, $config['rate_limit']['oauth_window_seconds']);
+        $this->assertSame(5, $config['rate_limit']['login_max']);
+        $this->assertSame(120, $config['rate_limit']['login_window_seconds']);
+        $this->assertSame(600, $config['rate_limit']['login_lockout_seconds']);
     }
 
     public function testProcessEnvOverridesFile(): void
@@ -220,6 +245,8 @@ ENV;
             'DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD',
             'ALLOWED_EMAIL_DOMAINS', 'MIGRATE_TOKEN', 'ADMIN_API_TOKEN',
             'ACCESS_TOKEN_TTL_SECONDS', 'ACCESS_TOKEN_TTL_MAX_SECONDS', 'AUDIT_RETENTION_DAYS',
+            'RATE_LIMIT_OAUTH_MAX', 'RATE_LIMIT_OAUTH_WINDOW_SECONDS',
+            'RATE_LIMIT_LOGIN_MAX', 'RATE_LIMIT_LOGIN_WINDOW_SECONDS', 'RATE_LIMIT_LOGIN_LOCKOUT_SECONDS',
             'JWT_ACCESS_TOKEN_ENABLED', 'JWT_HMAC_SECRET', 'JWT_KEY_ENCRYPTION_SECRET',
             'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_REDIRECT_URI',
             'MS_CLIENT_ID', 'MS_CLIENT_SECRET', 'MS_TENANT_ID', 'MS_REDIRECT_URI',

@@ -18,6 +18,7 @@ final class ConfigLoader
      *   admin_api_token: string,
      *   tokens: array{access_ttl_seconds: int, access_ttl_max_seconds: int},
      *   audit: array{retention_days: int},
+     *   rate_limit: array{oauth_max: int, oauth_window_seconds: int, login_max: int, login_window_seconds: int, login_lockout_seconds: int},
      *   jwt: array{enabled: bool, hmac_secret: string, key_encryption_secret: string},
      *   providers: array<string, array{client_id: string, client_secret: string, redirect_uri: string, scopes: list<string>, tenant_id?: string}>
      * }
@@ -122,6 +123,13 @@ final class ConfigLoader
             'audit' => [
                 'retention_days' => self::positiveInt($env['AUDIT_RETENTION_DAYS'] ?? '', 90),
             ],
+            'rate_limit' => [
+                'oauth_max' => self::positiveInt($env['RATE_LIMIT_OAUTH_MAX'] ?? '', 60),
+                'oauth_window_seconds' => self::positiveInt($env['RATE_LIMIT_OAUTH_WINDOW_SECONDS'] ?? '', 60),
+                'login_max' => self::positiveInt($env['RATE_LIMIT_LOGIN_MAX'] ?? '', 15),
+                'login_window_seconds' => self::positiveInt($env['RATE_LIMIT_LOGIN_WINDOW_SECONDS'] ?? '', 300),
+                'login_lockout_seconds' => self::positiveInt($env['RATE_LIMIT_LOGIN_LOCKOUT_SECONDS'] ?? '', 900),
+            ],
             'jwt' => [
                 'enabled' => filter_var($env['JWT_ACCESS_TOKEN_ENABLED'] ?? 'false', FILTER_VALIDATE_BOOLEAN),
                 'hmac_secret' => (string) ($env['JWT_HMAC_SECRET'] ?? ''),
@@ -176,6 +184,11 @@ final class ConfigLoader
             'ACCESS_TOKEN_TTL_SECONDS',
             'ACCESS_TOKEN_TTL_MAX_SECONDS',
             'AUDIT_RETENTION_DAYS',
+            'RATE_LIMIT_OAUTH_MAX',
+            'RATE_LIMIT_OAUTH_WINDOW_SECONDS',
+            'RATE_LIMIT_LOGIN_MAX',
+            'RATE_LIMIT_LOGIN_WINDOW_SECONDS',
+            'RATE_LIMIT_LOGIN_LOCKOUT_SECONDS',
             'JWT_ACCESS_TOKEN_ENABLED',
             'JWT_HMAC_SECRET',
             'JWT_KEY_ENCRYPTION_SECRET',

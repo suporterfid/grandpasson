@@ -119,8 +119,12 @@ final class RouterTest extends TestCase
         }
         $tokenSrc = (string) file_get_contents(dirname(__DIR__, 2) . '/app/Http/Controllers/OAuthTokenController.php');
         $introSrc = (string) file_get_contents(dirname(__DIR__, 2) . '/app/Http/Controllers/OAuthIntrospectController.php');
-        $this->assertStringContainsString('RateLimitGate::allowDb', $tokenSrc);
-        $this->assertStringContainsString('RateLimitGate::allowDb', $introSrc);
+        $this->assertTrue(
+            str_contains($tokenSrc, 'RateLimitGate::allowDb') || str_contains($tokenSrc, 'RateLimitGate::allowOauth'),
+        );
+        $this->assertTrue(
+            str_contains($introSrc, 'RateLimitGate::allowDb') || str_contains($introSrc, 'RateLimitGate::allowOauth'),
+        );
 
         $loginSrc = (string) file_get_contents(dirname(__DIR__, 2) . '/app/Http/Controllers/LoginController.php');
         $readerSrc = (string) file_get_contents(dirname(__DIR__, 2) . '/app/Http/Controllers/SiteReaderController.php');

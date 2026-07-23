@@ -18,7 +18,7 @@ final class OAuthIntrospectController
     public function introspect(array $config, array $params = []): void
     {
         $pdo = Connection::get($config['db']);
-        if (!RateLimitGate::allowDb($pdo, 'oauth_introspect')) {
+        if (!RateLimitGate::allowOauth($pdo, 'oauth_introspect', $config)) {
             Http::json(429, ['error' => 'rate_limited']);
 
             return;
