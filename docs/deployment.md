@@ -57,6 +57,7 @@ Set at least:
 | `DB_*` | MySQL credentials from cPanel |
 | `ALLOWED_EMAIL_DOMAINS` | Comma-separated; empty outside `APP_ENV=dev` refuses auto-create |
 | `MIGRATE_TOKEN` | Leave empty unless you intentionally expose HTTP migrate |
+| `CRON_TOKEN` | Leave empty unless a host can't run CLI cron and you must expose `cron/cleanup_*.php` over HTTP (see §5) |
 | `ADMIN_API_TOKEN` | Leave empty to disable `/admin` UI + `/admin/api`; set a long random secret to enable |
 | `ACCESS_TOKEN_TTL_SECONDS` | v1 machine-token TTL (default `900`); clamped to max |
 | `ACCESS_TOKEN_TTL_MAX_SECONDS` | Hard max TTL (default `3600`) |
@@ -96,6 +97,8 @@ Same scripts as local `make cron` / Docker `cron` profile ([spec §15](grandpass
 | Every 5 minutes | `php /home/USER/path/cron/cleanup_auth_codes.php` |
 | Hourly | `php /home/USER/path/cron/cleanup_access_tokens.php` |
 | Daily (e.g. 03:30) | `php /home/USER/path/cron/cleanup_audit_log.php` (uses `AUDIT_RETENTION_DAYS`) |
+
+CLI invocation of these four scripts is never gated. If the host only offers URL-based ("wget") cron and can't run CLI PHP, set `CRON_TOKEN` and pass it as `X-Cron-Token` header or `?token=` query param — HTTP requests without a matching token get `403 Forbidden` (same pattern as `MIGRATE_TOKEN` in §4). Leaving `CRON_TOKEN` unset disables HTTP invocation of these scripts entirely; CLI cron remains unaffected either way.
 
 Prefer CLI cron over HTTP hits.
 

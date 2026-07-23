@@ -56,6 +56,7 @@ DB_USER=grandpasson
 DB_PASSWORD=secret
 ALLOWED_EMAIL_DOMAINS=Example.com, Contoso.COM ,
 MIGRATE_TOKEN=tok
+CRON_TOKEN=cron-tok
 ADMIN_API_TOKEN=admin-secret
 MS_TENANT_ID=tenant-1
 GOOGLE_CLIENT_ID=g-id
@@ -73,6 +74,7 @@ ENV);
         $this->assertSame('secret', $config['db']['password']);
         $this->assertSame(['example.com', 'contoso.com'], $config['allowed_email_domains']);
         $this->assertSame('tok', $config['migrate_token']);
+        $this->assertSame('cron-tok', $config['cron_token']);
         $this->assertSame('admin-secret', $config['admin_api_token']);
         $this->assertSame('tenant-1', $config['providers']['microsoft']['tenant_id']);
         $this->assertSame('g-id', $config['providers']['google']['client_id']);
@@ -243,7 +245,7 @@ ENV;
             'SESSION_COOKIE_NAME', 'SESSION_COOKIE_SECURE', 'SESSION_TTL_MINUTES',
             'READER_SESSION_COOKIE_NAME',
             'DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD',
-            'ALLOWED_EMAIL_DOMAINS', 'MIGRATE_TOKEN', 'ADMIN_API_TOKEN',
+            'ALLOWED_EMAIL_DOMAINS', 'MIGRATE_TOKEN', 'CRON_TOKEN', 'ADMIN_API_TOKEN',
             'ACCESS_TOKEN_TTL_SECONDS', 'ACCESS_TOKEN_TTL_MAX_SECONDS', 'AUDIT_RETENTION_DAYS',
             'RATE_LIMIT_OAUTH_MAX', 'RATE_LIMIT_OAUTH_WINDOW_SECONDS',
             'RATE_LIMIT_LOGIN_MAX', 'RATE_LIMIT_LOGIN_WINDOW_SECONDS', 'RATE_LIMIT_LOGIN_LOCKOUT_SECONDS',
