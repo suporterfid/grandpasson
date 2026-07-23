@@ -116,6 +116,8 @@ php cron/admin.php client:create-service "TaskConnect" \
 Scopes must be from the broker vocabulary (`openid`, `profile`, `email`, `tenant:read`, `kb:read`, `kb:write`, `publish:read`, `tasks:callback`, `tasks:write`). Audience `workspace/<id>` narrows the token to a notes workspace or TaskConnect environment public id.
 The CLI prints `client_secret` **once**. Store it in the agent's secret store; the broker keeps only a password hash.
 
+**`--aud` is a fixed pin, not a suggestion.** `/oauth/token` only ever issues a token with `aud` = the client's configured `default_audience` (or `null` if `--aud` was omitted at creation). A client created without `--aud` cannot request a caller-chosen `audience` at token time — that request is rejected with `400 invalid_request` — since an unpinned client accepting any audience the caller names would defeat the workspace-narrowing control. Always set `--aud` for clients meant to be scoped to one workspace/environment.
+
 Issue a short-lived opaque token:
 
 ```bash
