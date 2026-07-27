@@ -113,6 +113,7 @@ final class ConfigLoader
                 'name' => $env['DB_NAME'],
                 'user' => $env['DB_USER'],
                 'password' => $env['DB_PASSWORD'],
+                'prefix' => $env['DB_PREFIX'] ?? '',
             ],
             'allowed_email_domains' => $domains,
             'migrate_token' => $env['MIGRATE_TOKEN'] ?? '',

@@ -37,7 +37,15 @@ $router = new Router();
 AppRoutes::register($router);
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
-$uri = $_SERVER['REQUEST_URI'] ?? '/';
+$rawUri = $_SERVER['REQUEST_URI'] ?? '/';
+$basePath = parse_url($config['broker']['base_url'] ?? '', PHP_URL_PATH) ?: '';
+$uri = $rawUri;
+if ($basePath !== '' && $basePath !== '/' && str_starts_with($rawUri, $basePath)) {
+    $uri = substr($rawUri, strlen($basePath));
+    if ($uri === '' || $uri[0] !== '/') {
+        $uri = '/' . $uri;
+    }
+}
 $match = $router->match($method, $uri);
 
 if ($match === null) {
