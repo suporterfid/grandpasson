@@ -1,0 +1,8 @@
+FROM php:8.2-fpm-bookworm
+
+RUN docker-php-ext-install pdo_mysql
+
+COPY php.ini /usr/local/etc/php/conf.d/grandpasson.ini
+COPY zz-docker.conf /usr/local/etc/php-fpm.d/zz-listen.conf
+
+WORKDIR /var/www/html

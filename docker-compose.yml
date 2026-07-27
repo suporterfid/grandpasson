@@ -1,0 +1,108 @@
+services:
+  web:
+    build: ./docker/php
+    ports:
+      - "8080:80"
+    volumes:
+      - ./public_html:/var/www/html/public_html:ro
+      - ./app:/var/www/html/app:ro
+      - ./vendor:/var/www/html/vendor:ro
+      - ./cron:/var/www/html/cron:ro
+      - ./tests:/var/www/html/tests:ro
+      - ./phpunit.xml:/var/www/html/phpunit.xml:ro
+      - ./.env:/var/www/html/.env:ro
+    extra_hosts:
+      # Some environments block bridge DNS between containers; reach MySQL via published host port.
+      - "host.docker.internal:host-gateway"
+    environment:
+      - APP_ENV=dev
+      - APACHE_DOCUMENT_ROOT=/var/www/html/public_html
+      # Override .env DB_HOST=127.0.0.1 (host CLI) so the web container hits published :3306.
+      - DB_HOST=host.docker.internal
+    env_file:
+      - .env
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: grandpasson
+      MYSQL_ROOT_PASSWORD: devrootpass
+      MYSQL_USER: grandpasson
+      MYSQL_PASSWORD: devpass
+    volumes:
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
+      - dbdata:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-pdevrootpass"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # Optional: docker compose --profile split up -d  (nginx + php-fpm)
+  # Prefer the default `web` service when container-to-container networking is restricted.
+  nginx:
+    profiles: ["split"]
+    build: ./docker/nginx
+    ports:
+      - "8080:80"
+    volumes:
+      - ./public_html:/var/www/html/public_html:ro
+      - ./app:/var/www/html/app:ro
+    depends_on:
+      - php
+
+  php:
+    profiles: ["split"]
+    build:
+      context: ./docker/php
+      dockerfile: Dockerfile.fpm
+    volumes:
+      - ./public_html:/var/www/html/public_html:ro
+      - ./app:/var/www/html/app:ro
+      - ./vendor:/var/www/html/vendor:ro
+    environment:
+      - APP_ENV=dev
+    env_file:
+      - .env
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  phpmyadmin:
+    profiles: ["tools"]
+    image: phpmyadmin:latest
+    environment:
+      PMA_HOST: mysql
+    ports:
+      - "8081:80"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  # Optional: docker compose --profile cron up -d
+  # Mirrors cPanel cron schedules from spec §15 against the same cleanup scripts.
+  cron:
+    profiles: ["cron"]
+    build: ./docker/cron
+    volumes:
+      - ./cron:/var/www/html/cron:ro
+      - ./app:/var/www/html/app:ro
+      - ./vendor:/var/www/html/vendor:ro
+      - ./.env:/var/www/html/.env:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - DB_HOST=host.docker.internal
+    env_file:
+      - .env
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+volumes:
+  dbdata:

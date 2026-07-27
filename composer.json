@@ -1,0 +1,32 @@
+{
+  "name": "suporterfid/grandpasson",
+  "description": "SSO that runs where your grandpa's cPanel still lives.",
+  "type": "project",
+  "license": "MIT",
+  "require": {
+    "php": ">=8.1",
+    "league/oauth2-client": "^2.7",
+    "league/oauth2-google": "^4.0",
+    "league/oauth2-github": "^3.0",
+    "firebase/php-jwt": "^7.0"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^10.5"
+  },
+  "autoload": {
+    "psr-4": {
+      "GrandpaSSOn\\": "app/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "GrandpaSSOn\\Tests\\": "tests/"
+    }
+  },
+  "scripts": {
+    "test": "phpunit"
+  },
+  "config": {
+    "sort-packages": true
+  }
+}
