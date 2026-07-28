@@ -29,6 +29,8 @@ final class SiteReaderController
         'github' => 'GitHub',
     ];
 
+    private const RETRYABLE_ERRORS = ['invalid_state', 'login_failed'];
+
     /** @param array<string, mixed> $config @param array<string, string> $params */
     public function chooser(array $config, array $params = []): void
     {
@@ -150,14 +152,14 @@ final class SiteReaderController
             || ($oauth['site_id'] ?? '') !== $siteId
             || ($oauth['provider'] ?? '') !== $providerName
         ) {
-            $this->htmlFail(400, 'invalid_state', 'Reader login session missing or mismatch');
+            $this->htmlFail($config, 400, 'invalid_state', 'Reader login session missing or mismatch', $siteId);
 
             return;
         }
 
         $returnedState = (string) ($_GET['state'] ?? '');
         if ($returnedState === '' || !hash_equals((string) $oauth['state'], $returnedState)) {
-            $this->htmlFail(400, 'invalid_state', 'OAuth state mismatch');
+            $this->htmlFail($config, 400, 'invalid_state', 'OAuth state mismatch', $siteId);
 
             return;
         }
@@ -166,7 +168,7 @@ final class SiteReaderController
         $sites = new PublishedSiteRepository($pdo);
         $site = $sites->findBySiteId($siteId);
         if ($site === null || !$site->enabled) {
-            $this->htmlFail(404, 'site_not_found', 'Unknown site');
+            $this->htmlFail($config, 404, 'site_not_found', 'Unknown site', $siteId);
 
             return;
         }
@@ -199,7 +201,7 @@ final class SiteReaderController
                         ip: Http::clientIp(),
                     );
                     unset($_SESSION['reader_oauth']);
-                    $this->htmlFail(403, 'forbidden', 'Private site requires tenant membership');
+                    $this->htmlFail($config, 403, 'forbidden', 'Private site requires tenant membership', $siteId);
 
                     return;
                 }
@@ -243,7 +245,7 @@ final class SiteReaderController
                 target: 'site:' . $siteId,
                 ip: Http::clientIp(),
             );
-            $this->htmlFail(400, 'login_failed', 'Reader login failed');
+            $this->htmlFail($config, 400, 'login_failed', 'Reader login failed', $siteId);
         }
     }
 
@@ -360,13 +362,21 @@ final class SiteReaderController
         return Http::prefersHtml();
     }
 
-    private function htmlFail(int $status, string $error, string $message): void
+    /** @param array<string, mixed> $config */
+    private function htmlFail(array $config, int $status, string $error, string $message, ?string $siteId = null): void
     {
         http_response_code($status);
         header('Content-Type: text/html; charset=utf-8');
         header('X-Error: ' . $error);
-        echo '<!doctype html><html><head><meta charset="utf-8"><title>Reader login failed</title></head><body>';
-        echo '<h1>Reader login failed</h1><p>' . htmlspecialchars($message, ENT_QUOTES) . '</p>';
-        echo '</body></html>';
+        echo Html::pageStart($config, 'Reader login failed');
+        echo '<div class="prose">';
+        echo '<h1>Reader login failed</h1>';
+        echo '<p>' . Html::e($message) . '</p>';
+        if ($siteId !== null && $siteId !== '' && in_array($error, self::RETRYABLE_ERRORS, true)) {
+            $retryHref = Html::e(Html::basePath($config) . '/site/' . rawurlencode($siteId) . '/login');
+            echo '<p><a class="btn btn--primary" href="' . $retryHref . '" rel="nofollow noreferrer">Try again</a></p>';
+        }
+        echo '</div>';
+        echo Html::pageEnd();
     }
 }
