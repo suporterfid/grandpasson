@@ -42,43 +42,23 @@ final class AdminUiController
         }
 
         $csrf = Csrf::token();
-        $name = htmlspecialchars((string) ($config['broker']['name'] ?? 'GrandpaSSOn'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $name = (string) ($config['broker']['name'] ?? 'GrandpaSSOn');
         $verbOptions = '';
         foreach (AdminCommandRunner::verbs() as $verb) {
-            $safe = htmlspecialchars($verb, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+            $safe = Html::e($verb);
             $verbOptions .= "      <option value=\"{$safe}\">{$safe}</option>\n";
         }
+        $apiUrl = Html::e(Html::basePath($config) . '/admin/api');
+        $scriptSrc = Html::e(Html::asset($config, 'admin.js'));
+        $safeName = Html::e($name);
+
         header('Content-Type: text/html; charset=utf-8');
+        echo Html::pageStart($config, $name . ' admin');
         echo <<<HTML
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{$name} admin</title>
-  <style>
-    :root { color-scheme: light; --ink:#1a1a1a; --muted:#555; --line:#d8d8d8; --bg:#f7f5f1; --accent:#0b5fff; }
-    body { margin:0; font:16px/1.45 "IBM Plex Sans", "Segoe UI", sans-serif; color:var(--ink); background:
-      radial-gradient(1200px 600px at 10% -10%, #e8eefc 0%, transparent 55%),
-      radial-gradient(900px 500px at 100% 0%, #f3ebe2 0%, transparent 50%),
-      var(--bg); }
-    main { max-width: 42rem; margin: 0 auto; padding: 2.5rem 1.25rem 4rem; }
-    h1 { font: 700 1.75rem/1.2 "IBM Plex Serif", Georgia, serif; margin: 0 0 .35rem; }
-    p.lead { color: var(--muted); margin: 0 0 1.5rem; }
-    label { display:block; font-size:.85rem; margin: .85rem 0 .25rem; }
-    input, select, textarea, button { font: inherit; }
-    input, select, textarea { width:100%; box-sizing:border-box; padding:.55rem .65rem; border:1px solid var(--line); border-radius:4px; background:#fff; }
-    button { margin-top:1rem; background:var(--accent); color:#fff; border:0; border-radius:4px; padding:.65rem 1rem; cursor:pointer; }
-    button:hover { filter:brightness(1.05); }
-    #out { margin-top:1.25rem; white-space:pre-wrap; background:#111; color:#d7ffd7; padding:1rem; border-radius:6px; min-height:4rem; font: 13px/1.4 ui-monospace, monospace; }
-    .hint { font-size:.8rem; color:var(--muted); }
-  </style>
-</head>
-<body>
-<main>
-  <h1>{$name} admin</h1>
+<div class="prose">
+  <h1>{$safeName} admin</h1>
   <p class="lead">Token-gated management surface mirroring <code>cron/admin.php</code>.</p>
-  <form id="admin-form">
+  <form id="admin-form" data-api-url="{$apiUrl}">
     <input type="hidden" name="csrf" value="{$csrf}">
     <label for="admin_token">Admin API token</label>
     <input id="admin_token" name="admin_token" type="password" autocomplete="off" required>
@@ -89,53 +69,14 @@ final class AdminUiController
     <input id="args" name="args" placeholder="acme &quot;Acme Corp&quot;">
     <label for="flags">Flags (one --key=value per line)</label>
     <textarea id="flags" name="flags" rows="4" placeholder="--scopes=kb:read&#10;--aud=workspace/abc"></textarea>
-    <p class="hint">Prefer <code>Authorization: Bearer</code> / <code>X-Admin-Token</code> for API clients. Secrets are shown once in the response.</p>
-    <button type="submit">Run</button>
+    <p class="text-small">Prefer <code>Authorization: Bearer</code> / <code>X-Admin-Token</code> for API clients. Secrets are shown once in the response.</p>
+    <button class="btn btn--primary" type="submit">Run</button>
   </form>
   <pre id="out">Ready.</pre>
-</main>
-<script>
-const form = document.getElementById('admin-form');
-const out = document.getElementById('out');
-form.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const fd = new FormData(form);
-  const flags = {};
-  String(fd.get('flags') || '').split(/\\n/).forEach((line) => {
-    const t = line.trim();
-    if (!t.startsWith('--')) return;
-    const body = t.slice(2);
-    const i = body.indexOf('=');
-    if (i === -1) flags[body] = '1';
-    else flags[body.slice(0, i)] = body.slice(i + 1);
-  });
-  const args = String(fd.get('args') || '').match(/(?:\"[^\"]*\"|'[^']*'|\\S+)/g) || [];
-  const cleaned = args.map((a) => a.replace(/^['\"]|['\"]$/g, ''));
-  out.textContent = 'Running…';
-  try {
-    const res = await fetch('/admin/api', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Admin-Token': String(fd.get('admin_token') || ''),
-      },
-      body: JSON.stringify({
-        csrf: fd.get('csrf'),
-        verb: fd.get('verb'),
-        args: cleaned,
-        flags,
-      }),
-    });
-    const text = await res.text();
-    out.textContent = res.status + '\\n' + text;
-  } catch (err) {
-    out.textContent = String(err);
-  }
-});
-</script>
-</body>
-</html>
+</div>
+<script src="{$scriptSrc}" defer></script>
 HTML;
+        echo Html::pageEnd();
     }
 
     /** @param array<string, mixed> $config @param array<string, string> $params */
