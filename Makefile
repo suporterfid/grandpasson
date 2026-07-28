@@ -49,3 +49,6 @@ cleanup-access-tokens:
 
 cleanup-audit-log:
 	php cron/cleanup_audit_log.php
+
+cleanup-email-otp:
+	php cron/cleanup_email_otp.php

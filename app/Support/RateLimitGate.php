@@ -92,4 +92,40 @@ final class RateLimitGate
             (int) ($rateLimit['login_lockout_seconds'] ?? 900),
         );
     }
+
+    /**
+     * Email OTP "start" throttle (R17 / S12): independent of the per-email
+     * pending-code cap in EmailOtpService — this one is IP-keyed.
+     *
+     * @param array<string, mixed> $config
+     */
+    public static function allowEmailOtpStart(PDO $pdo, string $route, array $config = []): bool
+    {
+        $rateLimit = $config['rate_limit'] ?? [];
+
+        return self::allowDb(
+            $pdo,
+            $route,
+            (int) ($rateLimit['email_otp_start_max'] ?? 5),
+            (int) ($rateLimit['email_otp_start_window_seconds'] ?? 900),
+        );
+    }
+
+    /**
+     * Email OTP "verify" throttle (R17 / S12): brakes brute-forcing a code
+     * from one IP, on top of EmailOtpService's per-row max_attempts lock.
+     *
+     * @param array<string, mixed> $config
+     */
+    public static function allowEmailOtpVerify(PDO $pdo, string $route, array $config = []): bool
+    {
+        $rateLimit = $config['rate_limit'] ?? [];
+
+        return self::allowDb(
+            $pdo,
+            $route,
+            (int) ($rateLimit['email_otp_verify_max'] ?? 10),
+            (int) ($rateLimit['email_otp_verify_window_seconds'] ?? 900),
+        );
+    }
 }

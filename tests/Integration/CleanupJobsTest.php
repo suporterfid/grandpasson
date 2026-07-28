@@ -7,6 +7,7 @@ namespace GrandpaSSOn\Tests\Integration;
 use GrandpaSSOn\Infrastructure\Cleanup\AccessTokenCleanup;
 use GrandpaSSOn\Infrastructure\Cleanup\AuditLogCleanup;
 use GrandpaSSOn\Infrastructure\Cleanup\AuthCodeCleanup;
+use GrandpaSSOn\Infrastructure\Cleanup\EmailOtpCleanup;
 use GrandpaSSOn\Infrastructure\Cleanup\SessionCleanup;
 use GrandpaSSOn\Infrastructure\Db\Connection;
 use GrandpaSSOn\Infrastructure\Db\ServiceClientRepository;
@@ -75,6 +76,21 @@ final class CleanupJobsTest extends TestCase
 
         $hashes = $this->pdo->query('SELECT code_hash FROM auth_codes')->fetchAll(PDO::FETCH_COLUMN);
         $this->assertSame(['hash-live'], $hashes);
+    }
+
+    public function testEmailOtpCleanupDeletesExpiredOrConsumedOnly(): void
+    {
+        $this->pdo->exec("INSERT INTO email_otp_codes
+            (id, email, code_hash, client_id, redirect_uri, client_state, attempts, max_attempts, expires_at, consumed, created_at) VALUES
+            ('live', 'a@example.com', 'h1', 'cid', 'https://app.example/cb', 's', 0, 5, DATE_ADD(UTC_TIMESTAMP(), INTERVAL 60 SECOND), 0, UTC_TIMESTAMP()),
+            ('consumed', 'b@example.com', 'h2', 'cid', 'https://app.example/cb', 's', 0, 5, DATE_ADD(UTC_TIMESTAMP(), INTERVAL 60 SECOND), 1, UTC_TIMESTAMP()),
+            ('expired', 'c@example.com', 'h3', 'cid', 'https://app.example/cb', 's', 0, 5, DATE_SUB(UTC_TIMESTAMP(), INTERVAL 5 SECOND), 0, UTC_TIMESTAMP())");
+
+        $deleted = (new EmailOtpCleanup($this->pdo))->run();
+        $this->assertSame(2, $deleted);
+
+        $ids = $this->pdo->query('SELECT id FROM email_otp_codes')->fetchAll(PDO::FETCH_COLUMN);
+        $this->assertSame(['live'], $ids);
     }
 
     public function testAccessTokenCleanupDeletesExpiredAndAgedRevokedOnly(): void
