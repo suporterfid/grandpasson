@@ -1,0 +1,67 @@
+<?php
+
+declare(strict_types=1);
+
+namespace GrandpaSSOn\Tests\Unit\Http\Controllers;
+
+use GrandpaSSOn\Http\Controllers\LoginController;
+use PHPUnit\Framework\TestCase;
+
+final class LoginControllerChooserTest extends TestCase
+{
+    public function testChooserAtWebRoot(): void
+    {
+        $config = ['broker' => ['name' => 'GrandpaSSOn', 'base_url' => 'http://localhost:8080']];
+
+        ob_start();
+        (new LoginController())->chooser($config);
+        $html = (string) ob_get_clean();
+
+        $this->assertStringContainsString('<html lang="en">', $html);
+        $this->assertStringContainsString('<meta name="viewport"', $html);
+        $this->assertStringContainsString('<h1>GrandpaSSOn</h1>', $html);
+        $this->assertStringContainsString('href="/login/google"', $html);
+        $this->assertStringContainsString('href="/login/microsoft"', $html);
+        $this->assertStringContainsString('href="/login/github"', $html);
+        $this->assertStringContainsString('Continue with Google', $html);
+        $this->assertStringContainsString('Continue with Microsoft', $html);
+        $this->assertStringContainsString('Continue with GitHub', $html);
+        $this->assertStringContainsString('btn btn--secondary', $html);
+    }
+
+    public function testChooserBuildsSubpathPrefixedHrefs(): void
+    {
+        $config = ['broker' => ['name' => 'GrandpaSSOn', 'base_url' => 'https://host/sso']];
+
+        ob_start();
+        (new LoginController())->chooser($config);
+        $html = (string) ob_get_clean();
+
+        $this->assertStringContainsString('href="/sso/login/google"', $html);
+        $this->assertStringContainsString('href="/sso/login/microsoft"', $html);
+        $this->assertStringContainsString('href="/sso/login/github"', $html);
+    }
+
+    public function testChooserEscapesBrokerName(): void
+    {
+        $config = ['broker' => ['name' => '<script>alert(1)</script>', 'base_url' => 'http://localhost:8080']];
+
+        ob_start();
+        (new LoginController())->chooser($config);
+        $html = (string) ob_get_clean();
+
+        $this->assertStringNotContainsString('<script>alert(1)</script>', $html);
+        $this->assertStringContainsString('&lt;script&gt;', $html);
+    }
+
+    public function testChooserDefaultsBrokerNameWhenMissing(): void
+    {
+        $config = ['broker' => ['base_url' => 'http://localhost:8080']];
+
+        ob_start();
+        (new LoginController())->chooser($config);
+        $html = (string) ob_get_clean();
+
+        $this->assertStringContainsString('<h1>GrandpaSSOn</h1>', $html);
+    }
+}
