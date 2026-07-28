@@ -33,6 +33,10 @@ Stop with `make down`.
 | `GET` | `/.well-known/jwks.json` | Public JWKS for RS256 JWT verification (R16) |
 | `GET` | `/login`, `/login/{provider}` | Browser login |
 | `GET` | `/callback/{provider}` | IdP callback |
+| `GET` | `/login/email` | Email OTP login: request form (R17) |
+| `POST` | `/login/email/start` | Email OTP login: send the code |
+| `GET` | `/login/email/verify` | Email OTP login: code entry form |
+| `POST` | `/login/email/verify` | Email OTP login: verify the code |
 | `POST` | `/logout` | End broker session |
 | `GET` | `/session` | Cookie session (same-host) |
 | `POST` | `/session/exchange` | RP auth-code → user (+ tenant/group claims) |

@@ -107,6 +107,7 @@ Cost of not solving: every downstream app reinvents authorization inconsistently
 - **R14. Gated-publishing reader sessions** (§9): `public` / `authenticated` / `private` visibility per site, reader login isolated from editor sessions.
 - **R15. Optional signed JWT access tokens** for an RP fast-path (stateless verification, short TTL), alongside opaque + introspection.
 - **R16. Key rotation tooling** for JWT signing keys (only if R15 is built).
+- **R17. Email one-time-code (OTP) login.** Passwordless sign-in via a code emailed to the user, as a fourth option alongside the OAuth providers. Reuses `UserProvisioner`/`AuthCodeService`/session establishment unchanged; adds a hand-rolled mailer (native `mail()` default, optional SMTP client) since no mail transport previously existed.
 
 ### Won't have (this iteration)
 
@@ -282,6 +283,7 @@ These are non-negotiable and derive directly from failure modes we are remediati
 - **S9. Rate limiting & lockout** on `/oauth/token`, `/oauth/introspect`, and login (R13). Backed by DB counters (no Redis on shared hosting).
 - **S10. Audit everything security-relevant** (§8). Failed auth included.
 - **S11. Pure-PHP crypto only.** Use `sodium`/`openssl` PHP extensions. **Do not** shell out (`exec`/`shell_exec` are disabled on target hosts).
+- **S12. Email OTP codes must be** CSPRNG-generated (`random_int`), hashed at rest (SHA-256, never plaintext, never logged), single-use, expiring, rate-limited by both requesting IP and recipient email (independent throttles), and compared with `hash_equals()`.
 
 ---
 

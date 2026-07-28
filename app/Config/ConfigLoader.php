@@ -19,9 +19,11 @@ final class ConfigLoader
      *   admin_api_token: string,
      *   tokens: array{access_ttl_seconds: int, access_ttl_max_seconds: int},
      *   audit: array{retention_days: int},
-     *   rate_limit: array{oauth_max: int, oauth_window_seconds: int, login_max: int, login_window_seconds: int, login_lockout_seconds: int},
+     *   rate_limit: array{oauth_max: int, oauth_window_seconds: int, login_max: int, login_window_seconds: int, login_lockout_seconds: int, email_otp_start_max: int, email_otp_start_window_seconds: int, email_otp_verify_max: int, email_otp_verify_window_seconds: int},
      *   jwt: array{enabled: bool, hmac_secret: string, key_encryption_secret: string},
-     *   providers: array<string, array{client_id: string, client_secret: string, redirect_uri: string, scopes: list<string>, tenant_id?: string}>
+     *   providers: array<string, array{client_id: string, client_secret: string, redirect_uri: string, scopes: list<string>, tenant_id?: string}>,
+     *   mail: array{transport: string, from_address: string, from_name: string, smtp_host: string, smtp_port: int, smtp_username: string, smtp_password: string, smtp_encryption: string},
+     *   email_otp: array{ttl_seconds: int, code_length: int, max_attempts: int}
      * }
      */
     public static function load(?string $envPath = null): array
@@ -132,6 +134,10 @@ final class ConfigLoader
                 'login_max' => self::positiveInt($env['RATE_LIMIT_LOGIN_MAX'] ?? '', 15),
                 'login_window_seconds' => self::positiveInt($env['RATE_LIMIT_LOGIN_WINDOW_SECONDS'] ?? '', 300),
                 'login_lockout_seconds' => self::positiveInt($env['RATE_LIMIT_LOGIN_LOCKOUT_SECONDS'] ?? '', 900),
+                'email_otp_start_max' => self::positiveInt($env['RATE_LIMIT_EMAIL_OTP_START_MAX'] ?? '', 5),
+                'email_otp_start_window_seconds' => self::positiveInt($env['RATE_LIMIT_EMAIL_OTP_START_WINDOW_SECONDS'] ?? '', 900),
+                'email_otp_verify_max' => self::positiveInt($env['RATE_LIMIT_EMAIL_OTP_VERIFY_MAX'] ?? '', 10),
+                'email_otp_verify_window_seconds' => self::positiveInt($env['RATE_LIMIT_EMAIL_OTP_VERIFY_WINDOW_SECONDS'] ?? '', 900),
             ],
             'jwt' => [
                 'enabled' => filter_var($env['JWT_ACCESS_TOKEN_ENABLED'] ?? 'false', FILTER_VALIDATE_BOOLEAN),
@@ -158,6 +164,21 @@ final class ConfigLoader
                     'redirect_uri' => $env['GITHUB_REDIRECT_URI'] ?? '',
                     'scopes' => ['read:user', 'user:email'],
                 ],
+            ],
+            'mail' => [
+                'transport' => $env['MAIL_TRANSPORT'] ?? 'sendmail',
+                'from_address' => $env['MAIL_FROM_ADDRESS'] ?? '',
+                'from_name' => ($env['MAIL_FROM_NAME'] ?? '') !== '' ? $env['MAIL_FROM_NAME'] : $env['BROKER_NAME'],
+                'smtp_host' => $env['SMTP_HOST'] ?? '',
+                'smtp_port' => self::positiveInt($env['SMTP_PORT'] ?? '', 587),
+                'smtp_username' => $env['SMTP_USERNAME'] ?? '',
+                'smtp_password' => $env['SMTP_PASSWORD'] ?? '',
+                'smtp_encryption' => $env['SMTP_ENCRYPTION'] ?? 'tls',
+            ],
+            'email_otp' => [
+                'ttl_seconds' => self::positiveInt($env['EMAIL_OTP_TTL_SECONDS'] ?? '', 600),
+                'code_length' => self::positiveInt($env['EMAIL_OTP_CODE_LENGTH'] ?? '', 6),
+                'max_attempts' => self::positiveInt($env['EMAIL_OTP_MAX_ATTEMPTS'] ?? '', 5),
             ],
         ];
     }
@@ -193,6 +214,10 @@ final class ConfigLoader
             'RATE_LIMIT_LOGIN_MAX',
             'RATE_LIMIT_LOGIN_WINDOW_SECONDS',
             'RATE_LIMIT_LOGIN_LOCKOUT_SECONDS',
+            'RATE_LIMIT_EMAIL_OTP_START_MAX',
+            'RATE_LIMIT_EMAIL_OTP_START_WINDOW_SECONDS',
+            'RATE_LIMIT_EMAIL_OTP_VERIFY_MAX',
+            'RATE_LIMIT_EMAIL_OTP_VERIFY_WINDOW_SECONDS',
             'JWT_ACCESS_TOKEN_ENABLED',
             'JWT_HMAC_SECRET',
             'JWT_KEY_ENCRYPTION_SECRET',
@@ -206,6 +231,17 @@ final class ConfigLoader
             'GITHUB_CLIENT_ID',
             'GITHUB_CLIENT_SECRET',
             'GITHUB_REDIRECT_URI',
+            'MAIL_TRANSPORT',
+            'MAIL_FROM_ADDRESS',
+            'MAIL_FROM_NAME',
+            'SMTP_HOST',
+            'SMTP_PORT',
+            'SMTP_USERNAME',
+            'SMTP_PASSWORD',
+            'SMTP_ENCRYPTION',
+            'EMAIL_OTP_TTL_SECONDS',
+            'EMAIL_OTP_CODE_LENGTH',
+            'EMAIL_OTP_MAX_ATTEMPTS',
         ];
     }
 

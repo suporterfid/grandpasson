@@ -7,6 +7,7 @@ namespace GrandpaSSOn\Http;
 use GrandpaSSOn\Http\Controllers\ActiveTenantController;
 use GrandpaSSOn\Http\Controllers\AdminUiController;
 use GrandpaSSOn\Http\Controllers\CallbackController;
+use GrandpaSSOn\Http\Controllers\EmailOtpLoginController;
 use GrandpaSSOn\Http\Controllers\HealthController;
 use GrandpaSSOn\Http\Controllers\JwksController;
 use GrandpaSSOn\Http\Controllers\LoginController;
@@ -34,6 +35,10 @@ final class AppRoutes
             ['GET', '/', HealthController::class, 'index'],
             ['GET', '/.well-known/jwks.json', JwksController::class, 'show'],
             ['GET', '/login', LoginController::class, 'chooser'],
+            ['GET', '/login/email', EmailOtpLoginController::class, 'form'],
+            ['POST', '/login/email/start', EmailOtpLoginController::class, 'start'],
+            ['GET', '/login/email/verify', EmailOtpLoginController::class, 'verifyForm'],
+            ['POST', '/login/email/verify', EmailOtpLoginController::class, 'verify'],
             ['GET', '/login/{provider}', LoginController::class, 'start'],
             ['GET', '/callback/{provider}', CallbackController::class, 'handle'],
             ['POST', '/logout', LogoutController::class, 'handle'],

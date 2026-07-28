@@ -9,11 +9,11 @@ use GrandpaSSOn\Infrastructure\Db\Connection;
 use GrandpaSSOn\Infrastructure\Providers\Pkce;
 use GrandpaSSOn\Infrastructure\Providers\ProviderException;
 use GrandpaSSOn\Infrastructure\Providers\ProviderFactory;
-use GrandpaSSOn\Infrastructure\Db\OAuthClientRepository;
 use GrandpaSSOn\Support\Csrf;
 use GrandpaSSOn\Support\Html;
 use GrandpaSSOn\Support\Http;
 use GrandpaSSOn\Support\RateLimitGate;
+use GrandpaSSOn\Support\RpRequestValidator;
 
 final class LoginController
 {
@@ -39,6 +39,9 @@ final class LoginController
             echo '<li><a class="btn btn--secondary" href="' . $href . '">Continue with ' . Html::e($label) . '</a></li>';
         }
         echo '</ul>';
+        $query = http_build_query($_GET);
+        $emailHref = Html::e(Html::basePath($config) . '/login/email' . ($query !== '' ? '?' . $query : ''));
+        echo '<p class="text-small"><a href="' . $emailHref . '">Or continue with email</a></p>';
         echo '</div>';
         echo Html::pageEnd();
     }
@@ -60,55 +63,13 @@ final class LoginController
             return;
         }
 
-        $clientId = (string) ($_GET['client_id'] ?? '');
-        $redirectUri = (string) ($_GET['redirect_uri'] ?? '');
-        $clientState = (string) ($_GET['state'] ?? '');
-        $returnTo = (string) ($_GET['return_to'] ?? '');
-        $rpChallenge = trim((string) ($_GET['code_challenge'] ?? ''));
-        $rpChallengeMethod = strtoupper(trim((string) ($_GET['code_challenge_method'] ?? 'S256')));
-
-        if ($clientId === '' || $redirectUri === '' || $clientState === '') {
-            Http::json(400, ['error' => 'invalid_request', 'message' => 'client_id, redirect_uri, and state are required']);
-
-            return;
-        }
-
-        $clients = new OAuthClientRepository($pdo);
         $audit = new AuditLogger($pdo);
-        $client = $clients->findByClientId($clientId);
-
-        if ($client === null) {
-            Http::json(400, ['error' => 'invalid_client', 'message' => 'Unknown client_id']);
-
-            return;
-        }
-        if (!$client->enabled) {
-            $audit->log('login.disabled_client', null, $providerName, Http::clientIp());
-            Http::json(403, ['error' => 'disabled_client', 'message' => 'OAuth client is disabled']);
-
-            return;
-        }
-        if (!$client->allowsRedirectUri($redirectUri)) {
-            Http::json(400, ['error' => 'invalid_redirect_uri', 'message' => 'redirect_uri does not match registered URIs']);
-
-            return;
-        }
-
-        // S6 / R11: public clients must use PKCE (S256).
-        if (!$client->isConfidential()) {
-            if ($rpChallenge === '' || $rpChallengeMethod !== 'S256') {
-                Http::json(400, [
-                    'error' => 'invalid_request',
-                    'message' => 'public clients require code_challenge with code_challenge_method=S256',
-                ]);
-
-                return;
+        $validated = RpRequestValidator::validate($pdo, $_GET);
+        if (!$validated->ok) {
+            if ($validated->error === 'disabled_client') {
+                $audit->log('login.disabled_client', null, $providerName, Http::clientIp());
             }
-        } elseif ($rpChallenge !== '' && $rpChallengeMethod !== 'S256') {
-            Http::json(400, [
-                'error' => 'invalid_request',
-                'message' => 'Only S256 code_challenge_method is supported',
-            ]);
+            Http::json($validated->status, ['error' => $validated->error, 'message' => $validated->message]);
 
             return;
         }
@@ -131,12 +92,12 @@ final class LoginController
             'state' => $oauthState,
             'nonce' => $nonce,
             'pkce' => $pkce,
-            'client_id' => $clientId,
-            'redirect_uri' => $redirectUri,
-            'client_state' => $clientState,
-            'return_to' => $returnTo,
-            'rp_code_challenge' => $rpChallenge !== '' ? $rpChallenge : null,
-            'rp_code_challenge_method' => $rpChallenge !== '' ? $rpChallengeMethod : null,
+            'client_id' => $validated->clientId,
+            'redirect_uri' => $validated->redirectUri,
+            'client_state' => $validated->clientState,
+            'return_to' => $validated->returnTo,
+            'rp_code_challenge' => $validated->codeChallenge,
+            'rp_code_challenge_method' => $validated->codeChallengeMethod,
         ];
         Csrf::token();
 

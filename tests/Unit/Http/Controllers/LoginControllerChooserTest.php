@@ -9,6 +9,11 @@ use PHPUnit\Framework\TestCase;
 
 final class LoginControllerChooserTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        $_GET = [];
+    }
+
     public function testChooserAtWebRoot(): void
     {
         $config = ['broker' => ['name' => 'GrandpaSSOn', 'base_url' => 'http://localhost:8080']];
@@ -27,6 +32,23 @@ final class LoginControllerChooserTest extends TestCase
         $this->assertStringContainsString('Continue with Microsoft', $html);
         $this->assertStringContainsString('Continue with GitHub', $html);
         $this->assertStringContainsString('btn btn--secondary', $html);
+        $this->assertStringContainsString('href="/login/email"', $html);
+        $this->assertStringContainsString('Or continue with email', $html);
+    }
+
+    public function testChooserForwardsRpParamsOnEmailLink(): void
+    {
+        $config = ['broker' => ['name' => 'GrandpaSSOn', 'base_url' => 'http://localhost:8080']];
+        $_GET = ['client_id' => 'cid', 'redirect_uri' => 'https://app.example/cb', 'state' => 's'];
+
+        ob_start();
+        (new LoginController())->chooser($config);
+        $html = (string) ob_get_clean();
+
+        $this->assertStringContainsString(
+            'href="/login/email?client_id=cid&amp;redirect_uri=https%3A%2F%2Fapp.example%2Fcb&amp;state=s"',
+            $html
+        );
     }
 
     public function testChooserBuildsSubpathPrefixedHrefs(): void
