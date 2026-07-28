@@ -397,6 +397,7 @@ accident.
 | Fonts are self-hosted rather than CDN-loaded | Deploy target is shared/cPanel hosting with no assumed outbound CDN access, and the login/admin surfaces should not add a third-party request on credential-handling pages (VI4, #91). |
 | Asset URLs are base-path-prefixed rather than root-absolute | `public_html/index.php` strips a configurable `BROKER_BASE_URL` path prefix on the way in (subpath installs, e.g. `/sso`); asset and link URLs must add the same prefix on the way out or they 404 under a subpath deploy (VI3, #90). |
 | Terminal/console output in the admin UI keeps a monospace stack per §7 "Code" but uses `--color-surface` rather than the near-black it uses today | Keeps the console readout inside the same token system as the rest of the page instead of a one-off dark panel (VI8, #95). |
+| `public_html/assets/favicon.svg` duplicates `assets/brand/favicon.svg` byte-for-byte instead of a single source | `docker/build/build.sh` copies `public_html/` wholesale and never touches a root-level `assets/` directory (it actively fails the build if `docs/` or `docker/` leak into the zip), so the deployed favicon has to live under `public_html/assets/`. `assets/brand/favicon.svg` stays the canonical source for contributors/design tooling; the two are kept in sync by hand today — see the sync check note below (VI9, #96). |
 
 ### Extension policy application (§14 items 1–5)
 
@@ -410,8 +411,46 @@ accident.
 - Nothing in this appendix redefines an existing token's meaning (item 4).
 - The three deviations above are recorded per item 5.
 
-### Related docs
+### Project marks (§8, §13 — VI9)
 
-- `assets/brand/` clear-space and do-not rules — see VI9 (#96) once brand
-  marks land; this appendix will link the specific file rather than
-  duplicate it.
+GrandpaSSOn's mark is a rounded-square badge with a keyhole cut out of it,
+built from plain SVG primitives (`<rect>`, `<circle>`, `<path>` inside a
+`<mask>` — no filters, no embedded raster, no script). It lives under
+`assets/brand/`:
+
+| File | Purpose |
+|---|---|
+| `assets/brand/mark.svg` | Symbol only, `--color-action` (`#814DDE`) fill, transparent background |
+| `assets/brand/mark-monochrome.svg` | Same geometry, `fill="currentColor"` — the caller sets one ink color; this is the file's proof that the mark does not depend on the palette |
+| `assets/brand/wordmark.svg` | Horizontal lockup: the mark plus "GrandpaSSOn" set in the `--font-sans` fallback stack |
+| `assets/brand/favicon.svg` | Canonical favicon source — identical to `mark.svg` today; the keyhole cutout was chosen specifically because it stays legible at 16px, unlike finer detail would |
+| `assets/brand/social-card.png` | 1200×630 GitHub social-preview image (repo-only; nothing serves this over HTTP) |
+
+**Clear space.** Keep clear space around the mark of at least half the
+badge's corner radius (the mark's one stable feature across every variant)
+measured from the badge's outer edge — in the 64×64 source, that's ≥7px on
+every side before other content starts.
+
+**Do not:**
+
+- stretch or skew the mark to a non-square aspect ratio,
+- recolor `mark.svg`'s fixed `#814DDE` fill (use `mark-monochrome.svg` with
+  a single `currentColor` instead of tinting the color variant),
+- rotate the badge,
+- outline it or add drop shadows / glows / gradients,
+- place the wordmark's text at a size where it renders under 4.5:1 contrast
+  as running text — the wordmark's `#EBEBEB` on transparent is fine over
+  `--color-canvas`/`--color-surface`, but verify contrast again if it is
+  ever placed over a lighter background.
+
+**Favicon sync.** `public_html/assets/favicon.svg` is a byte-for-byte copy
+of `assets/brand/favicon.svg`, duplicated because `assets/` is outside the
+release zip's copied paths (see the deviation log above). If one changes,
+copy it to the other in the same commit; `tests/Unit/ThemeCssTest.php`-style
+coverage for this equality is the natural home for an automated check
+(tracked for VI11, #98).
+
+**Legibility check.** Both the color and monochrome variants stay
+identifiable as a keyhole shape at 16×16 (favicon size) and at typical
+repository-avatar sizes — verified by eye against the rendered SVG; there
+is no automated visual-regression check for this in CI.
