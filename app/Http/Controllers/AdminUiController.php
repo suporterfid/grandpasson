@@ -8,6 +8,7 @@ use GrandpaSSOn\Infrastructure\Admin\AdminCommandRunner;
 use GrandpaSSOn\Infrastructure\Db\Connection;
 use GrandpaSSOn\Support\AdminGate;
 use GrandpaSSOn\Support\Csrf;
+use GrandpaSSOn\Support\Html;
 use GrandpaSSOn\Support\Http;
 use GrandpaSSOn\Support\RateLimitGate;
 
@@ -30,8 +31,12 @@ final class AdminUiController
         if (!AdminGate::isConfigured($config)) {
             http_response_code(403);
             header('Content-Type: text/html; charset=utf-8');
-            echo '<!doctype html><meta charset="utf-8"><title>Admin disabled</title>';
+            echo Html::pageStart($config, 'Admin disabled');
+            echo '<div class="prose">';
+            echo '<h1>Admin disabled</h1>';
             echo '<p>Admin HTTP is disabled. Set <code>ADMIN_API_TOKEN</code> to enable.</p>';
+            echo '</div>';
+            echo Html::pageEnd();
 
             return;
         }

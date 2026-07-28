@@ -11,6 +11,7 @@ use GrandpaSSOn\Infrastructure\Providers\ProviderException;
 use GrandpaSSOn\Infrastructure\Providers\ProviderFactory;
 use GrandpaSSOn\Infrastructure\Provisioning\UserProvisioner;
 use GrandpaSSOn\Support\Csrf;
+use GrandpaSSOn\Support\Html;
 use GrandpaSSOn\Support\Http;
 use GrandpaSSOn\Support\RateLimitGate;
 
@@ -43,20 +44,20 @@ final class CallbackController
         }
 
         if (!is_array($oauth) || ($oauth['provider'] ?? '') !== $providerName) {
-            $this->fail(400, 'invalid_state', 'Login session missing or provider mismatch');
+            $this->fail($config, 400, 'invalid_state', 'Login session missing or provider mismatch');
 
             return;
         }
 
         $returnedState = (string) ($_GET['state'] ?? '');
         if ($returnedState === '' || !hash_equals((string) $oauth['state'], $returnedState)) {
-            $this->fail(400, 'invalid_state', 'OAuth state mismatch');
+            $this->fail($config, 400, 'invalid_state', 'OAuth state mismatch');
 
             return;
         }
 
         if (isset($_GET['error'])) {
-            $this->fail(400, 'provider_error', (string) ($_GET['error_description'] ?? $_GET['error']));
+            $this->fail($config, 400, 'provider_error', (string) ($_GET['error_description'] ?? $_GET['error']));
 
             return;
         }
@@ -114,21 +115,26 @@ final class CallbackController
             Http::redirect($target);
         } catch (ProviderException $e) {
             $audit->log('login.failure', null, $providerName, Http::clientIp());
-            $this->fail(400, 'login_failed', $e->getMessage());
+            $this->fail($config, 400, 'login_failed', $e->getMessage());
         } catch (\Throwable $e) {
             $audit->log('login.failure', null, $providerName, Http::clientIp());
-            $this->fail(500, 'server_error', 'Callback processing failed');
+            $this->fail($config, 500, 'server_error', 'Callback processing failed');
         }
     }
 
-    private function fail(int $status, string $error, string $message): void
+    /** @param array<string, mixed> $config */
+    private function fail(array $config, int $status, string $error, string $message): void
     {
         http_response_code($status);
         header('Content-Type: text/html; charset=utf-8');
         header('X-Error: ' . $error);
-        $safe = htmlspecialchars($message, ENT_QUOTES);
-        echo '<!doctype html><html><head><meta charset="utf-8"><title>Login failed</title></head><body>';
-        echo '<h1>Login failed</h1><p>' . $safe . '</p>';
-        echo '<p><a href="/login">Try again</a></p></body></html>';
+        echo Html::pageStart($config, 'Login failed');
+        echo '<div class="prose">';
+        echo '<h1>Login failed</h1>';
+        echo '<p>' . Html::e($message) . '</p>';
+        $loginHref = Html::e(Html::basePath($config) . '/login');
+        echo '<p><a class="btn btn--primary" href="' . $loginHref . '" rel="nofollow noreferrer">Try again</a></p>';
+        echo '</div>';
+        echo Html::pageEnd();
     }
 }
