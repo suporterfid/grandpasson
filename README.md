@@ -64,6 +64,7 @@ App developers: **[docs/client-integration.md](docs/client-integration.md)** (RP
 | [docs/grandpasson-v0-mvp-plan.md](docs/grandpasson-v0-mvp-plan.md) | v0 task list |
 | [docs/plans/2026-07-22-001-feat-v1-p0-tenancy-machine-identity-plan.md](docs/plans/2026-07-22-001-feat-v1-p0-tenancy-machine-identity-plan.md) | v1 P0 implementation plan |
 | [docs/plans/2026-07-21-001-feat-post-review-v0-next-steps-plan.md](docs/plans/2026-07-21-001-feat-post-review-v0-next-steps-plan.md) | Post-review sequencing / exchange |
+| [docs/visual-identity.md](docs/visual-identity.md) | Visual identity spec + GrandpaSSOn theme decisions |
 
 ## License
 
