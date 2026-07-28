@@ -6,6 +6,7 @@ use GrandpaSSOn\Config\ConfigLoader;
 use GrandpaSSOn\Http\AppRoutes;
 use GrandpaSSOn\Http\Router;
 use GrandpaSSOn\Infrastructure\Session\SessionBootstrap;
+use GrandpaSSOn\Support\Html;
 use GrandpaSSOn\Support\HttpsEnforcer;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
@@ -38,9 +39,9 @@ AppRoutes::register($router);
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $rawUri = $_SERVER['REQUEST_URI'] ?? '/';
-$basePath = parse_url($config['broker']['base_url'] ?? '', PHP_URL_PATH) ?: '';
+$basePath = Html::basePath($config);
 $uri = $rawUri;
-if ($basePath !== '' && $basePath !== '/' && str_starts_with($rawUri, $basePath)) {
+if ($basePath !== '' && str_starts_with($rawUri, $basePath)) {
     $uri = substr($rawUri, strlen($basePath));
     if ($uri === '' || $uri[0] !== '/') {
         $uri = '/' . $uri;
