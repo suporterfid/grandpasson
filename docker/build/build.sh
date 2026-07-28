@@ -30,7 +30,7 @@ echo "==> Creating grandpasson-release.zip"
 echo "==> Verifying zip contents"
 LIST="$(unzip -Z1 grandpasson-release.zip)"
 
-for required in composer.json .env.example; do
+for required in composer.json .env.example public_html/assets/theme.css public_html/assets/favicon.svg; do
   echo "$LIST" | grep -qx "$required" || {
     echo "missing required file: $required" >&2
     exit 1
@@ -44,7 +44,7 @@ for prefix in public_html/ app/ vendor/ cron/; do
   }
 done
 
-echo "$LIST" | grep -E '^(tests/|docker/|docs/|\.git/)' && {
+echo "$LIST" | grep -E '^(tests/|docker/|docs/|\.git/|assets/brand/)' && {
   echo "forbidden path present in zip" >&2
   exit 1
 } || true

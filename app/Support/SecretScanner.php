@@ -177,7 +177,7 @@ final class SecretScanner
         }
 
         $lower = strtolower($filename);
-        foreach (['.php', '.json', '.yml', '.yaml', '.xml', '.md', '.txt', '.sh', '.ini'] as $ext) {
+        foreach (['.php', '.json', '.yml', '.yaml', '.xml', '.md', '.txt', '.sh', '.ini', '.css', '.js', '.svg'] as $ext) {
             if (str_ends_with($lower, $ext)) {
                 return true;
             }

@@ -122,6 +122,10 @@ body {
   font-weight: 400;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  /* overflow-wrap is inherited; without it a long unbroken value (e.g. a
+     BROKER_NAME or site_id with no spaces) overflows the viewport instead
+     of wrapping (spec §10 "test with longer translated strings"). */
+  overflow-wrap: break-word;
 }
 
 h1,
