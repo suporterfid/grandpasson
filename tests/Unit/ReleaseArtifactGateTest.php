@@ -51,5 +51,10 @@ final class ReleaseArtifactGateTest extends TestCase
         $this->assertStringContainsString('app/', $joined);
         $this->assertStringContainsString('cron/', $joined);
         $this->assertStringContainsString('public_html/', $joined);
+
+        // VI11 (#98): identity assets ship, and the repo-only brand source tree does not.
+        $this->assertContains('public_html/assets/theme.css', $names, 'theme.css must ship in the release zip');
+        $this->assertContains('public_html/assets/favicon.svg', $names, 'favicon.svg must ship in the release zip');
+        $this->assertStringNotContainsString("\nassets/brand/", "\n" . $joined, 'assets/brand/ is repo-only and must not ship');
     }
 }
