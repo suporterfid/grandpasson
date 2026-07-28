@@ -11,22 +11,36 @@ use GrandpaSSOn\Infrastructure\Providers\ProviderException;
 use GrandpaSSOn\Infrastructure\Providers\ProviderFactory;
 use GrandpaSSOn\Infrastructure\Db\OAuthClientRepository;
 use GrandpaSSOn\Support\Csrf;
+use GrandpaSSOn\Support\Html;
 use GrandpaSSOn\Support\Http;
 use GrandpaSSOn\Support\RateLimitGate;
 
 final class LoginController
 {
+    private const PROVIDER_LABELS = [
+        'google' => 'Google',
+        'microsoft' => 'Microsoft',
+        'github' => 'GitHub',
+    ];
+
     /** @param array<string, mixed> $config @param array<string, string> $params */
     public function chooser(array $config, array $params = []): void
     {
         header('Content-Type: text/html; charset=utf-8');
-        $name = htmlspecialchars((string) ($config['broker']['name'] ?? 'GrandpaSSOn'), ENT_QUOTES);
-        echo '<!doctype html><html><head><meta charset="utf-8"><title>' . $name . ' Login</title></head><body>';
-        echo '<h1>' . $name . '</h1><p>Choose a provider (pass client_id, redirect_uri, and state on the provider URL).</p><ul>';
-        foreach (['google', 'microsoft', 'github'] as $provider) {
-            echo '<li><a href="/login/' . $provider . '">' . htmlspecialchars($provider, ENT_QUOTES) . '</a></li>';
+        $name = (string) ($config['broker']['name'] ?? 'GrandpaSSOn');
+
+        echo Html::pageStart($config, $name . ' Login');
+        echo '<div class="prose">';
+        echo '<h1>' . Html::e($name) . '</h1>';
+        echo '<p class="lead">Choose a provider (pass client_id, redirect_uri, and state on the provider URL).</p>';
+        echo '<ul class="action-list">';
+        foreach (self::PROVIDER_LABELS as $provider => $label) {
+            $href = Html::e(Html::basePath($config) . '/login/' . rawurlencode($provider));
+            echo '<li><a class="btn btn--secondary" href="' . $href . '">Continue with ' . Html::e($label) . '</a></li>';
         }
-        echo '</ul></body></html>';
+        echo '</ul>';
+        echo '</div>';
+        echo Html::pageEnd();
     }
 
     /** @param array<string, mixed> $config @param array<string, string> $params */
