@@ -14,6 +14,7 @@ use GrandpaSSOn\Infrastructure\Providers\Pkce;
 use GrandpaSSOn\Infrastructure\Providers\ProviderException;
 use GrandpaSSOn\Infrastructure\Providers\ProviderFactory;
 use GrandpaSSOn\Infrastructure\Provisioning\UserProvisioner;
+use GrandpaSSOn\Support\Html;
 use GrandpaSSOn\Support\Http;
 use GrandpaSSOn\Support\RateLimitGate;
 
@@ -22,6 +23,12 @@ use GrandpaSSOn\Support\RateLimitGate;
  */
 final class SiteReaderController
 {
+    private const PROVIDER_LABELS = [
+        'google' => 'Google',
+        'microsoft' => 'Microsoft',
+        'github' => 'GitHub',
+    ];
+
     /** @param array<string, mixed> $config @param array<string, string> $params */
     public function chooser(array $config, array $params = []): void
     {
@@ -58,17 +65,20 @@ final class SiteReaderController
             return;
         }
 
-        $safeSite = htmlspecialchars($siteId, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-        $name = htmlspecialchars((string) ($config['broker']['name'] ?? 'GrandpaSSOn'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $name = (string) ($config['broker']['name'] ?? 'GrandpaSSOn');
         header('Content-Type: text/html; charset=utf-8');
-        echo '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>' . $name . ' reader login</title></head><body>';
-        echo '<h1>' . $name . ' reader login</h1>';
-        echo '<p>Sign in to read site <code>' . $safeSite . '</code> (publish:read only; not an editor session).</p><ul>';
-        foreach (['google', 'microsoft', 'github'] as $provider) {
-            $href = '/site/' . rawurlencode($siteId) . '/login/' . $provider;
-            echo '<li><a href="' . htmlspecialchars($href, ENT_QUOTES) . '">' . htmlspecialchars($provider, ENT_QUOTES) . '</a></li>';
+        echo Html::pageStart($config, $name . ' reader login');
+        echo '<div class="prose">';
+        echo '<h1>' . Html::e($name) . ' reader login</h1>';
+        echo '<p>Sign in to read site <code>' . Html::e($siteId) . '</code> (publish:read only; not an editor session).</p>';
+        echo '<ul class="action-list">';
+        foreach (self::PROVIDER_LABELS as $provider => $label) {
+            $href = Html::e(Html::basePath($config) . '/site/' . rawurlencode($siteId) . '/login/' . rawurlencode($provider));
+            echo '<li><a class="btn btn--secondary" href="' . $href . '">Continue with ' . Html::e($label) . '</a></li>';
         }
-        echo '</ul></body></html>';
+        echo '</ul>';
+        echo '</div>';
+        echo Html::pageEnd();
     }
 
     /** @param array<string, mixed> $config @param array<string, string> $params */
@@ -216,11 +226,15 @@ final class SiteReaderController
             );
 
             header('Content-Type: text/html; charset=utf-8');
-            echo '<!doctype html><html><head><meta charset="utf-8"><title>Reader signed in</title></head><body>';
+            echo Html::pageStart($config, 'Reader signed in');
+            echo '<div class="prose">';
             echo '<h1>Reader session established</h1>';
-            echo '<p>Site <code>' . htmlspecialchars($siteId, ENT_QUOTES) . '</code> — scope <code>publish:read</code> only.</p>';
-            echo '<p><a href="/site/' . rawurlencode($siteId) . '/session">Check session</a></p>';
-            echo '</body></html>';
+            echo '<p>Site <code>' . Html::e($siteId) . '</code></p>';
+            echo '<div class="card card--emphasis"><p><strong>Scope:</strong> <code>publish:read</code> only — this is not an editor session.</p></div>';
+            $sessionHref = Html::e(Html::basePath($config) . '/site/' . rawurlencode($siteId) . '/session');
+            echo '<p><a href="' . $sessionHref . '">Check session</a></p>';
+            echo '</div>';
+            echo Html::pageEnd();
         } catch (\Throwable $e) {
             $audit->record(
                 action: 'reader.login.failure',
