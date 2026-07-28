@@ -368,6 +368,28 @@ state), `warning` (admin token entry, "secrets shown once"), and `success`
 | `--color-warning` | `#F5A623` | 10.36:1 | 8.96:1 |
 | `--color-success` | `#3DDC97` | 11.88:1 | 10.27:1 |
 
+All three clear 4.5:1 on both backgrounds, so they are safe for status text
+as well as icons/borders — but per §3.3 they still ship paired with a text
+label wherever they appear, never as the sole signal.
+
+### Verified contrast table (GrandpaSSOn-specific pairs)
+
+Extends §3.4 with the pairs this project actually renders — `surface-emphasis`
+and purple-on-surface, which the shared spec's §3.4 baseline omits:
+
+| Foreground | Background | Hex / Hex | Ratio | Passes |
+|---|---|---|---|---|
+| `--color-text` | `--color-surface-emphasis` | `#EBEBEB` / `#1B0F46` | 14.64:1 | AAA |
+| `--color-text-muted` | `--color-surface-emphasis` | `#B0B0B0` / `#1B0F46` | 8.05:1 | AAA |
+| `--color-focus` | `--color-canvas` | `#814DDE` / `#000000` | 4.05:1 | Non-text (3:1 floor) — this is the focus-ring pair, not a text pair |
+
+The `action`/`focus` pair (`#814DDE`) intentionally sits at 4.05:1 on canvas
+— below the 4.5:1 normal-text threshold. This is not a bug: it encodes
+§3.3's rule that this purple must not be used for small body text or
+standalone links on canvas. If a future palette change pushes this above
+4.5:1, update it deliberately (and note why in this table), not by
+accident.
+
 ### Self-hosted fonts (§4.1, §13 — VI4)
 
 `public_html/assets/fonts/` ships four static WOFF2 instances of Open Sans:
@@ -403,27 +425,26 @@ state), `warning` (admin token entry, "secrets shown once"), and `success`
   declaring a range they can't satisfy would be exactly the font
   synthesis spec §4.1 forbids.
 
-All three clear 4.5:1 on both backgrounds, so they are safe for status text
-as well as icons/borders — but per §3.3 they still ship paired with a text
-label wherever they appear, never as the sole signal.
+### Content-Security-Policy (VI10, #97)
 
-### Verified contrast table (GrandpaSSOn-specific pairs)
+`Html::pageStart()` (VI3) emits one `Content-Security-Policy` header on
+every browser-facing HTML response:
 
-Extends §3.4 with the pairs this project actually renders — `surface-emphasis`
-and purple-on-surface, which the shared spec's §3.4 baseline omits:
+```
+default-src 'self'; style-src 'self'; script-src 'self'; font-src 'self';
+img-src 'self'; connect-src 'self'; form-action 'self';
+frame-ancestors 'none'; base-uri 'none'; object-src 'none'
+```
 
-| Foreground | Background | Hex / Hex | Ratio | Passes |
-|---|---|---|---|---|
-| `--color-text` | `--color-surface-emphasis` | `#EBEBEB` / `#1B0F46` | 14.64:1 | AAA |
-| `--color-text-muted` | `--color-surface-emphasis` | `#B0B0B0` / `#1B0F46` | 8.05:1 | AAA |
-| `--color-focus` | `--color-canvas` | `#814DDE` / `#000000` | 4.05:1 | Non-text (3:1 floor) — this is the focus-ring pair, not a text pair |
-
-The `action`/`focus` pair (`#814DDE`) intentionally sits at 4.05:1 on canvas
-— below the 4.5:1 normal-text threshold. This is not a bug: it encodes
-§3.3's rule that this purple must not be used for small body text or
-standalone links on canvas. If a future palette change pushes this above
-4.5:1, update it deliberately (and note why in this table), not by
-accident.
+No `'unsafe-inline'` or `'unsafe-eval'` anywhere — every stylesheet, script,
+and font this project ships is self-hosted and same-origin (VI2, VI4, VI8),
+and no controller emits inline `<style>`/`<script>` or inline event
+handlers. `connect-src 'self'` covers `admin.js`'s `fetch()` call to
+`/admin/api`. `frame-ancestors 'none'` and `base-uri 'none'` are
+defense-in-depth for an auth broker: nothing here needs to be framed, and
+nothing uses a `<base>` tag. JSON API responses (`Http::json()`) are
+unaffected — the header is only set from `Html::pageStart()`, which only
+the five HTML-rendering controllers call.
 
 ### Deviation log (§14)
 

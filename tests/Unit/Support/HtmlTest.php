@@ -85,6 +85,21 @@ final class HtmlTest extends TestCase
         $this->assertSame('</body></html>', Html::pageEnd());
     }
 
+    public function testContentSecurityPolicyHasNoInlineOrUnsafeSources(): void
+    {
+        $csp = Html::CSP;
+
+        $this->assertStringNotContainsString('unsafe-inline', $csp);
+        $this->assertStringNotContainsString('unsafe-eval', $csp);
+        $this->assertStringContainsString("default-src 'self'", $csp);
+        $this->assertStringContainsString("style-src 'self'", $csp);
+        $this->assertStringContainsString("script-src 'self'", $csp);
+        $this->assertStringContainsString("font-src 'self'", $csp);
+        $this->assertStringContainsString("connect-src 'self'", $csp);
+        $this->assertStringContainsString("frame-ancestors 'none'", $csp);
+        $this->assertStringContainsString("object-src 'none'", $csp);
+    }
+
     public function testEscapesQuotesAndInvalidUtf8(): void
     {
         $this->assertSame('&quot;quoted&quot;', Html::e('"quoted"'));

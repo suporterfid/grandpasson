@@ -39,11 +39,25 @@ final class Html
     }
 
     /**
+     * VI10 (#97): every asset this markup references (theme.css, fonts,
+     * admin.js, favicon.svg) is self-hosted and same-origin, and no
+     * controller emits inline <style>/<script> or inline event handlers —
+     * so the policy can be this strict without an 'unsafe-inline' escape
+     * hatch. Public so tests can assert on the shipped policy directly.
+     */
+    public const CSP = "default-src 'self'; style-src 'self'; script-src 'self'; "
+        . "font-src 'self'; img-src 'self'; connect-src 'self'; form-action 'self'; "
+        . "frame-ancestors 'none'; base-uri 'none'; object-src 'none'";
+
+    /**
      * Emits doctype through <body> open, including the theme stylesheet
-     * link. Callers must close with pageEnd().
+     * link and the Content-Security-Policy header (VI10, #97). Callers
+     * must close with pageEnd().
      */
     public static function pageStart(array $config, string $title, string $bodyClass = ''): string
     {
+        header('Content-Security-Policy: ' . self::CSP);
+
         $themeHref = self::e(self::asset($config, 'theme.css'));
         $faviconHref = self::e(self::asset($config, 'favicon.svg'));
         $safeTitle = self::e($title);
