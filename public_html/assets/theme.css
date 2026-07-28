@@ -8,6 +8,44 @@
  * to the palette block and the status-token block.
  */
 
+/*
+ * Self-hosted Open Sans (VI4, #91) — Latin + Latin-Extended subset, WOFF2
+ * only. Relative url()s so they resolve under both root and subpath
+ * installs with no PHP involvement. See public_html/assets/fonts/LICENSE.txt
+ * (SIL OFL 1.1) and docs/visual-identity.md for source/version/subset notes.
+ */
+@font-face {
+  font-family: "Open Sans";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/open-sans-400.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Open Sans";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("fonts/open-sans-500.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Open Sans";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("fonts/open-sans-600.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Open Sans";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("fonts/open-sans-700.woff2") format("woff2");
+}
+
 :root {
   color-scheme: dark;
 

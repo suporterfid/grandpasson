@@ -368,6 +368,41 @@ state), `warning` (admin token entry, "secrets shown once"), and `success`
 | `--color-warning` | `#F5A623` | 10.36:1 | 8.96:1 |
 | `--color-success` | `#3DDC97` | 11.88:1 | 10.27:1 |
 
+### Self-hosted fonts (§4.1, §13 — VI4)
+
+`public_html/assets/fonts/` ships four static WOFF2 instances of Open Sans:
+
+| File | Weight |
+|---|---|
+| `open-sans-400.woff2` | Regular |
+| `open-sans-500.woff2` | Medium |
+| `open-sans-600.woff2` | Semibold |
+| `open-sans-700.woff2` | Bold |
+
+- **Source**: [google/fonts](https://github.com/google/fonts), `ofl/opensans/`,
+  upstream repository `googlefonts/opensans` at commit
+  `bd7e37632246368c60fdcbd374dbf9bad11969b6` (per that directory's
+  `METADATA.pb`). The upstream ships a single variable font
+  (`OpenSans[wdth,wght].ttf`, weight axis 300–800, width axis 75–100); each
+  static file here is a `wght`-pinned instance at `wdth=100` produced with
+  `fonttools varLib.instancer`.
+- **Subsetting**: `fonttools subset`, Unicode ranges `U+0000-00FF` (Latin-1),
+  `U+0100-017F` (Latin Extended-A), `U+0180-024F` (Latin Extended-B), plus
+  the punctuation/currency/symbol code points GrandpaSSOn's copy actually
+  uses (curly quotes, em/en dash, ellipsis, €, ™, arrows, minus sign,
+  U+FFFD). Layout features kept: `kern`, `liga`, `calt`, `ccmp`, `mark`,
+  `mkmk` — enough for correct Latin shaping without the full OpenType
+  feature set. Result: ~20KB per weight, ~80KB total.
+- **License**: SIL OFL 1.1, copied verbatim to
+  `public_html/assets/fonts/LICENSE.txt` from the same upstream directory.
+  The repository itself is MIT (`LICENSE`); this is a separately-licensed
+  bundled asset, called out per spec §12.
+- **No CDN, no variable-font range**: `@font-face` in `theme.css` declares
+  each weight discretely (`font-weight: 400` / `500` / `600` / `700`), not
+  a `100 900` range — the shipped files are static instances, and
+  declaring a range they can't satisfy would be exactly the font
+  synthesis spec §4.1 forbids.
+
 All three clear 4.5:1 on both backgrounds, so they are safe for status text
 as well as icons/borders — but per §3.3 they still ship paired with a text
 label wherever they appear, never as the sole signal.
