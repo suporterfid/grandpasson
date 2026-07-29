@@ -43,11 +43,14 @@ final class DbPrefixTest extends TestCase
 
     public function test_migrations_and_repository_queries_use_the_configured_prefix(): void
     {
+        $migrationsDir = dirname(__DIR__, 2) . '/app/Infrastructure/Db/Migrations';
+        $expectedCount = count(glob($migrationsDir . '/*.sql') ?: []);
+
         $pdo = $this->prefixedPdo('sso_');
-        $migrator = new Migrator($pdo, dirname(__DIR__, 2) . '/app/Infrastructure/Db/Migrations');
+        $migrator = new Migrator($pdo, $migrationsDir);
 
         $applied = $migrator->migrate();
-        $this->assertCount(19, $applied);
+        $this->assertCount($expectedCount, $applied);
 
         $tables = $pdo->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN);
         sort($tables);

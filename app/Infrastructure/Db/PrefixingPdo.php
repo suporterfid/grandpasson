@@ -45,6 +45,7 @@ final class PrefixingPdo extends PDO
         'reader_sessions',
         'jwt_signing_keys',
         'user_active_tenant',
+        'email_otp_codes',
     ];
 
     private readonly string $prefix;
