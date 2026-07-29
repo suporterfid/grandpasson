@@ -11,7 +11,7 @@ final class Connection
     private static ?PDO $pdo = null;
 
     /**
-     * @param array{host: string, port: int, name: string, user: string, password: string} $db
+     * @param array{host: string, port: int, name: string, user: string, password: string, prefix?: string} $db
      */
     public static function get(array $db): PDO
     {
@@ -26,11 +26,11 @@ final class Connection
             $db['name']
         );
 
-        self::$pdo = new PDO($dsn, $db['user'], $db['password'], [
+        self::$pdo = new PrefixingPdo($dsn, $db['user'], $db['password'], [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES => false,
-        ]);
+        ], $db['prefix'] ?? '');
 
         return self::$pdo;
     }
