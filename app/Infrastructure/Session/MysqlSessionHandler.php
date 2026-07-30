@@ -53,17 +53,23 @@ final class MysqlSessionHandler implements SessionHandlerInterface
     {
         $now = time();
         $expires = $now + $this->ttlSeconds;
+        $userId = self::extractUserId($data);
 
         if ($data === $this->lastWrittenData) {
             // Touch expiry only — do not rewrite the data blob (write-on-change).
+            // user_id is still refreshed on every touch: a session that starts
+            // anonymous (pre-login) and is later authenticated must not keep a
+            // stale NULL forever just because a later write happens to match a
+            // still-not-authenticated intermediate payload.
             $stmt = $this->pdo->prepare(
                 'INSERT INTO sessions (id, user_id, data, last_access, expires_at)
-                 VALUES (:id, NULL, :data, :last_access, :expires_at)
-                 ON DUPLICATE KEY UPDATE last_access = VALUES(last_access), expires_at = VALUES(expires_at)'
+                 VALUES (:id, :user_id, :data, :last_access, :expires_at)
+                 ON DUPLICATE KEY UPDATE user_id = VALUES(user_id), last_access = VALUES(last_access), expires_at = VALUES(expires_at)'
             );
 
             return $stmt->execute([
                 'id' => $id,
+                'user_id' => $userId,
                 'data' => $data,
                 'last_access' => $now,
                 'expires_at' => $expires,
@@ -72,11 +78,12 @@ final class MysqlSessionHandler implements SessionHandlerInterface
 
         $stmt = $this->pdo->prepare(
             'INSERT INTO sessions (id, user_id, data, last_access, expires_at)
-             VALUES (:id, NULL, :data, :last_access, :expires_at)
-             ON DUPLICATE KEY UPDATE data = VALUES(data), last_access = VALUES(last_access), expires_at = VALUES(expires_at)'
+             VALUES (:id, :user_id, :data, :last_access, :expires_at)
+             ON DUPLICATE KEY UPDATE user_id = VALUES(user_id), data = VALUES(data), last_access = VALUES(last_access), expires_at = VALUES(expires_at)'
         );
         $ok = $stmt->execute([
             'id' => $id,
+            'user_id' => $userId,
             'data' => $data,
             'last_access' => $now,
             'expires_at' => $expires,
@@ -86,6 +93,25 @@ final class MysqlSessionHandler implements SessionHandlerInterface
         }
 
         return $ok;
+    }
+
+    /**
+     * The `user_id` column exists so relying parties sharing this database
+     * (e.g. Jotter's GrandpaSSOnIdentityProvider) can resolve a session's
+     * authenticated user with a plain indexed lookup, without depending on
+     * PHP's session serialization format. write() only receives the
+     * already-serialized session string (not the live $_SESSION array), so
+     * this parses the `user_id` key out of PHP's native session
+     * serialization format directly: `key|serialized_php_value;...`, where
+     * scalar values use PHP's serialize() encoding (e.g. `s:36:"...";`).
+     */
+    private static function extractUserId(string $data): ?string
+    {
+        if (preg_match('/(?:^|;)user_id\|s:\d+:"([^"]*)";/', $data, $matches) === 1) {
+            return $matches[1] !== '' ? $matches[1] : null;
+        }
+
+        return null;
     }
 
     public function destroy(string $id): bool
