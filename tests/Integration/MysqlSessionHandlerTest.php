@@ -57,6 +57,51 @@ final class MysqlSessionHandlerTest extends TestCase
         $this->assertTrue($handler->close());
     }
 
+    public function testWritePopulatesUserIdColumnFromSessionPayload(): void
+    {
+        $handler = new MysqlSessionHandler($this->pdo, 3600);
+        $id = 'useridsession' . bin2hex(random_bytes(8));
+        $payload = 'foo|s:3:"bar";user_id|s:36:"11111111-1111-1111-1111-111111111111";email|s:16:"a@example.com";';
+
+        $handler->write($id, $payload);
+
+        $row = $this->pdo->prepare('SELECT user_id FROM sessions WHERE id = :id');
+        $row->execute(['id' => $id]);
+        $this->assertSame('11111111-1111-1111-1111-111111111111', $row->fetchColumn());
+
+        $handler->destroy($id);
+    }
+
+    public function testWriteLeavesUserIdNullForAnonymousSession(): void
+    {
+        $handler = new MysqlSessionHandler($this->pdo, 3600);
+        $id = 'anonsession' . bin2hex(random_bytes(8));
+        $payload = 'csrf|s:6:"abcdef";';
+
+        $handler->write($id, $payload);
+
+        $row = $this->pdo->prepare('SELECT user_id FROM sessions WHERE id = :id');
+        $row->execute(['id' => $id]);
+        $this->assertNull($row->fetchColumn() ?: null);
+
+        $handler->destroy($id);
+    }
+
+    public function testWriteBackfillsUserIdOnceASessionAuthenticates(): void
+    {
+        $handler = new MysqlSessionHandler($this->pdo, 3600);
+        $id = 'backfillsession' . bin2hex(random_bytes(8));
+
+        $handler->write($id, 'csrf|s:6:"abcdef";');
+        $handler->write($id, 'csrf|s:6:"abcdef";user_id|s:36:"22222222-2222-2222-2222-222222222222";');
+
+        $row = $this->pdo->prepare('SELECT user_id FROM sessions WHERE id = :id');
+        $row->execute(['id' => $id]);
+        $this->assertSame('22222222-2222-2222-2222-222222222222', $row->fetchColumn());
+
+        $handler->destroy($id);
+    }
+
     public function testSkipsRewriteWhenPayloadUnchanged(): void
     {
         $handler = new MysqlSessionHandler($this->pdo, 3600);
