@@ -121,7 +121,15 @@ php cron/admin.php client:create-service "StatusConnect" \
   --aud=workspace/env_abc123
 ```
 
-Scopes must be from the broker vocabulary (`openid`, `profile`, `email`, `tenant:read`, `kb:read`, `kb:write`, `publish:read`, `tasks:callback`, `tasks:write`, `status:read`, `status:write`, `status:callback`). Audience `workspace/<id>` narrows the token to a notes workspace or the mapped TaskConnect / StatusConnect environment public id.
+TallyMark example (read, write, and callback):
+
+```bash
+php cron/admin.php client:create-service "TallyMark" \
+  --scopes=analytics:read,analytics:write,analytics:callback \
+  --aud=workspace/ten_abc123
+```
+
+Scopes must be from the broker vocabulary (`openid`, `profile`, `email`, `tenant:read`, `kb:read`, `kb:write`, `publish:read`, `tasks:callback`, `tasks:write`, `status:read`, `status:write`, `status:callback`, `analytics:read`, `analytics:write`, `analytics:callback`). Audience `workspace/<id>` narrows the token to a notes workspace or the mapped TaskConnect, StatusConnect, or TallyMark workspace id.
 The CLI prints `client_secret` **once**. Store it in the agent's secret store; the broker keeps only a password hash.
 
 **`--aud` is a fixed pin, not a suggestion.** `/oauth/token` only ever issues a token with `aud` = the client's configured `default_audience` (or `null` if `--aud` was omitted at creation). A client created without `--aud` cannot request a caller-chosen `audience` at token time — that request is rejected with `400 invalid_request` — since an unpinned client accepting any audience the caller names would defeat the workspace-narrowing control. Always set `--aud` for clients meant to be scoped to one workspace/environment.
@@ -167,6 +175,8 @@ curl -sS -X POST https://auth.example.com/me/pats/<token_id>/revoke -b 'AUTHSESS
 Self-service creation only allows scopes a subject may hold personally (`openid`, `profile`, `email`, `tenant:read`, `kb:read`, `publish:read`) — `400 invalid_scope` otherwise. `kb:write`, `tasks:callback`, and `tasks:write` (§6.3: trusted services only) require the admin CLI below.
 
 `status:read`, `status:write`, and `status:callback` are also trusted-service-only scopes and cannot be issued through self-service PAT creation.
+
+`analytics:read`, `analytics:write`, and `analytics:callback` are trusted-service-only TallyMark scopes and cannot be issued through self-service PAT creation.
 
 Admin break-glass CLI remains available:
 

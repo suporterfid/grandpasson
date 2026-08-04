@@ -212,6 +212,9 @@ Broker-issued, RP-interpreted. Keep small and explicit.
 | `status:read` | Read monitor, incident, and status data | StatusConnect service client |
 | `status:write` | Change StatusConnect resources | StatusConnect service client |
 | `status:callback` | Authenticate a StatusConnect-originated callback | StatusConnect service client |
+| `analytics:read` | Read TallyMark analytics data | TallyMark service client |
+| `analytics:write` | Write TallyMark analytics data | TallyMark service client |
+| `analytics:callback` | Authenticate a TallyMark-originated callback | TallyMark service client |
 
 > Workspace-narrowing is expressed via `audience` (`workspace/<id>`), **not** via new scopes per workspace. Rationale: keeps the scope set bounded (Non-goal N1).
 >

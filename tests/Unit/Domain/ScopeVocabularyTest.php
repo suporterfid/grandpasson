@@ -29,6 +29,17 @@ final class ScopeVocabularyTest extends TestCase
         );
     }
 
+    public function testRecognizesTallyMarkAnalyticsScopes(): void
+    {
+        $scopes = ['analytics:read', 'analytics:write', 'analytics:callback'];
+
+        $this->assertSame([], ScopeVocabulary::unknown($scopes));
+        $this->assertSame(
+            ['analytics:unknown'],
+            ScopeVocabulary::unknown([...$scopes, 'analytics:unknown']),
+        );
+    }
+
     public function testMachineScopesIncludeTaskConnect(): void
     {
         $machine = ScopeVocabulary::machineScopes();
@@ -44,6 +55,15 @@ final class ScopeVocabularyTest extends TestCase
         $this->assertContains(ScopeVocabulary::STATUS_READ, $machine);
         $this->assertContains(ScopeVocabulary::STATUS_WRITE, $machine);
         $this->assertContains(ScopeVocabulary::STATUS_CALLBACK, $machine);
+    }
+
+    public function testMachineScopesIncludeTallyMarkAnalyticsScopes(): void
+    {
+        $machine = ScopeVocabulary::machineScopes();
+
+        $this->assertContains('analytics:read', $machine);
+        $this->assertContains('analytics:write', $machine);
+        $this->assertContains('analytics:callback', $machine);
     }
 
     public function testSelfServiceScopesExcludeTrustedServiceOnlyScopes(): void
@@ -66,6 +86,19 @@ final class ScopeVocabularyTest extends TestCase
         $this->assertSame(
             ['status:write'],
             ScopeVocabulary::disallowedForSelfService(['tenant:read', 'status:write']),
+        );
+    }
+
+    public function testSelfServiceScopesExcludeTallyMarkAnalyticsScopes(): void
+    {
+        $selfService = ScopeVocabulary::selfServiceScopes();
+
+        $this->assertNotContains('analytics:read', $selfService);
+        $this->assertNotContains('analytics:write', $selfService);
+        $this->assertNotContains('analytics:callback', $selfService);
+        $this->assertSame(
+            ['analytics:write'],
+            ScopeVocabulary::disallowedForSelfService(['tenant:read', 'analytics:write']),
         );
     }
 
