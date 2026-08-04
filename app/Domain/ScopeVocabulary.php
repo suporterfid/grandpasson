@@ -30,6 +30,14 @@ final class ScopeVocabulary
     public const STATUS_CALLBACK = 'status:callback';
 
     /**
+     * TallyMark machine-client scopes. These are intentionally reserved for
+     * the analytics integration and are not self-service PAT permissions.
+     */
+    public const ANALYTICS_READ = 'analytics:read';
+    public const ANALYTICS_WRITE = 'analytics:write';
+    public const ANALYTICS_CALLBACK = 'analytics:callback';
+
+    /**
      * Canonical known scopes (docs + admin validation allowlist).
      *
      * @return list<string>
@@ -49,6 +57,9 @@ final class ScopeVocabulary
             self::STATUS_READ,
             self::STATUS_WRITE,
             self::STATUS_CALLBACK,
+            self::ANALYTICS_READ,
+            self::ANALYTICS_WRITE,
+            self::ANALYTICS_CALLBACK,
         ];
     }
 
@@ -69,6 +80,9 @@ final class ScopeVocabulary
             self::STATUS_READ,
             self::STATUS_WRITE,
             self::STATUS_CALLBACK,
+            self::ANALYTICS_READ,
+            self::ANALYTICS_WRITE,
+            self::ANALYTICS_CALLBACK,
         ];
     }
 
@@ -109,6 +123,9 @@ final class ScopeVocabulary
             self::STATUS_READ,
             self::STATUS_WRITE,
             self::STATUS_CALLBACK,
+            self::ANALYTICS_READ,
+            self::ANALYTICS_WRITE,
+            self::ANALYTICS_CALLBACK,
         ]));
     }
 
