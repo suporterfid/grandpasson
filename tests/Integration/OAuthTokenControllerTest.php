@@ -123,6 +123,30 @@ final class OAuthTokenControllerTest extends TestCase
         $this->assertTrue(OpaqueToken::hasExpectedShape((string) $payload['access_token']));
     }
 
+    public function testIssuesStatusConnectScopesWithEnvironmentAudience(): void
+    {
+        (new ServiceClientRepository($this->pdo))->create(
+            'svc-statusconnect',
+            'StatusConnect',
+            'status-secret',
+            ['status:read', 'status:write', 'status:callback'],
+            'workspace/env_status123',
+            true,
+        );
+
+        $payload = $this->postToken([
+            'grant_type' => 'client_credentials',
+            'client_id' => 'svc-statusconnect',
+            'client_secret' => 'status-secret',
+            'scope' => 'status:read status:write status:callback',
+        ]);
+
+        $this->assertSame(200, http_response_code());
+        $this->assertSame('status:read status:write status:callback', $payload['scope']);
+        $this->assertSame('workspace/env_status123', $payload['aud']);
+        $this->assertTrue(OpaqueToken::hasExpectedShape((string) $payload['access_token']));
+    }
+
     public function testRejectsDisallowedScopeWithoutIssuing(): void
     {
         $payload = $this->postToken([

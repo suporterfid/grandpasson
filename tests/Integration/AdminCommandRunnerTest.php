@@ -144,6 +144,19 @@ final class AdminCommandRunnerTest extends TestCase
         ]);
     }
 
+    public function testCreateServiceAcceptsStatusConnectScopes(): void
+    {
+        $created = $this->admin->run('client:create-service', ['StatusConnect'], [
+            'scopes' => 'status:read,status:write,status:callback',
+            'aud' => 'workspace/env_status123',
+            'client-id' => 'svc-statusconnect',
+        ]);
+
+        $this->assertTrue($created['ok']);
+        $this->assertSame(['status:read', 'status:write', 'status:callback'], $created['scopes']);
+        $this->assertSame('workspace/env_status123', $created['aud']);
+    }
+
     public function testTokenRevokeByClient(): void
     {
         $created = $this->admin->run('client:create-service', ['Revoker'], [
