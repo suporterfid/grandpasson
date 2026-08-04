@@ -122,7 +122,15 @@ final class UserPatSelfServiceTest extends TestCase
         $userId = $this->seedUser('scoped@example.com');
         $_SESSION['user_id'] = $userId;
 
-        foreach (['kb:write', 'tasks:callback', 'tasks:write', 'nope:scope'] as $badScope) {
+        foreach ([
+            'kb:write',
+            'tasks:callback',
+            'tasks:write',
+            'status:read',
+            'status:write',
+            'status:callback',
+            'nope:scope',
+        ] as $badScope) {
             http_response_code(200);
             $this->withJsonBody([
                 'csrf' => Csrf::token(),

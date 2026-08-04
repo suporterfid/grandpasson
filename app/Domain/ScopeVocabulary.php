@@ -22,6 +22,14 @@ final class ScopeVocabulary
     public const TASKS_WRITE = 'tasks:write';
 
     /**
+     * StatusConnect machine-client scopes. These are intentionally separate
+     * from general workspace and TaskConnect permissions.
+     */
+    public const STATUS_READ = 'status:read';
+    public const STATUS_WRITE = 'status:write';
+    public const STATUS_CALLBACK = 'status:callback';
+
+    /**
      * Canonical known scopes (docs + admin validation allowlist).
      *
      * @return list<string>
@@ -38,6 +46,9 @@ final class ScopeVocabulary
             self::PUBLISH_READ,
             self::TASKS_CALLBACK,
             self::TASKS_WRITE,
+            self::STATUS_READ,
+            self::STATUS_WRITE,
+            self::STATUS_CALLBACK,
         ];
     }
 
@@ -55,6 +66,9 @@ final class ScopeVocabulary
             self::PUBLISH_READ,
             self::TASKS_CALLBACK,
             self::TASKS_WRITE,
+            self::STATUS_READ,
+            self::STATUS_WRITE,
+            self::STATUS_CALLBACK,
         ];
     }
 
@@ -81,7 +95,7 @@ final class ScopeVocabulary
 
     /**
      * Scopes a subject may self-issue onto a PAT (R10). Excludes scopes §6.3
-     * reserves for trusted services (`kb:write`, `tasks:callback`, `tasks:write`).
+     * reserves for trusted services (`kb:write`, TaskConnect, and StatusConnect scopes).
      * Admin CLI `pat:create` is unaffected — it validates against all() for break-glass.
      *
      * @return list<string>
@@ -92,6 +106,9 @@ final class ScopeVocabulary
             self::KB_WRITE,
             self::TASKS_CALLBACK,
             self::TASKS_WRITE,
+            self::STATUS_READ,
+            self::STATUS_WRITE,
+            self::STATUS_CALLBACK,
         ]));
     }
 

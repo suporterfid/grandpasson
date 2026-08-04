@@ -209,6 +209,9 @@ Broker-issued, RP-interpreted. Keep small and explicit.
 | `publish:read` | Read a gated published site | Reader sessions (P2) |
 | `tasks:callback` | Authenticate a background job callback | TaskConnect service client (outbound) |
 | `tasks:write` | Submit / ingest tasks inbound | TaskConnect service client (inbound) |
+| `status:read` | Read monitor, incident, and status data | StatusConnect service client |
+| `status:write` | Change StatusConnect resources | StatusConnect service client |
+| `status:callback` | Authenticate a StatusConnect-originated callback | StatusConnect service client |
 
 > Workspace-narrowing is expressed via `audience` (`workspace/<id>`), **not** via new scopes per workspace. Rationale: keeps the scope set bounded (Non-goal N1).
 >
@@ -330,7 +333,12 @@ Then the editor endpoint rejects it (reader scope grants no editor capability).
 - Set `aud` / `--aud=workspace/<environment_public_id>` so introspection returns the workspace/environment public id TaskConnect uses as `workspace_id` (e.g. `env_…`).
 - GrandpaSSOn's own token-GC and audit-retention can be scheduled *as* TaskConnect jobs (or the existing cron) — GrandpaSSOn exposes a protected maintenance endpoint or CLI entrypoint for this.
 
-### 10.3 AI agents / MCP server
+### 10.3 StatusConnect (service client)
+- Registered as a **service client** with `status:read`, `status:write`, and/or `status:callback`; these scopes are reserved for the StatusConnect integration and are not self-service PAT scopes.
+- Set `aud` / `--aud=workspace/<environment_public_id>` to StatusConnect's mapped tenant environment public id (for example, `env_...`). The fixed audience pin remains the broker's tenant/ambient isolation control; scopes do not encode a tenant.
+- StatusConnect validates client-credentials tokens through introspection and applies its own local role and group mapping after the broker has authenticated the service client.
+
+### 10.4 AI agents / MCP server
 - Authenticate via a service client (machine) or a user PAT (R10), scope `kb:read`, `aud=workspace/<id>`.
 - The MCP/retrieval layer validates every call by introspection before returning content.
 
