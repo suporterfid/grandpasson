@@ -10,6 +10,8 @@ use GrandpaSSOn\Infrastructure\Auth\EmailOtpService;
 use GrandpaSSOn\Infrastructure\Auth\EmailOtpVerifyResult;
 use GrandpaSSOn\Infrastructure\Db\Connection;
 use GrandpaSSOn\Infrastructure\Mail\MailerFactory;
+use GrandpaSSOn\Infrastructure\Providers\AccountPendingException;
+use GrandpaSSOn\Infrastructure\Providers\AccountRejectedException;
 use GrandpaSSOn\Infrastructure\Providers\NormalizedIdentity;
 use GrandpaSSOn\Infrastructure\Providers\ProviderException;
 use GrandpaSSOn\Infrastructure\Provisioning\UserProvisioner;
@@ -184,10 +186,7 @@ final class EmailOtpLoginController
                 emailVerified: true,
                 name: null,
             );
-            $provisioner = new UserProvisioner($pdo, [
-                'app_env' => (string) $config['app_env'],
-                'allowed_email_domains' => $config['allowed_email_domains'] ?? [],
-            ]);
+            $provisioner = new UserProvisioner($pdo);
             $user = $provisioner->resolve($identity);
 
             session_regenerate_id(true);
@@ -217,6 +216,14 @@ final class EmailOtpLoginController
                 'code' => $rawCode,
                 'state' => $clientState,
             ]));
+        } catch (AccountPendingException $e) {
+            unset($_SESSION['email_otp_id']);
+            $audit->log('login.failure', null, 'email_otp', Http::clientIp());
+            $this->fail($config, 403, 'Your account is awaiting admin approval.');
+        } catch (AccountRejectedException $e) {
+            unset($_SESSION['email_otp_id']);
+            $audit->log('login.failure', null, 'email_otp', Http::clientIp());
+            $this->fail($config, 403, 'Your signup was not approved.');
         } catch (ProviderException $e) {
             unset($_SESSION['email_otp_id']);
             $audit->log('login.failure', null, 'email_otp', Http::clientIp());
@@ -264,6 +271,16 @@ final class EmailOtpLoginController
         echo '<input type="email" id="email" name="email" required autofocus autocomplete="email">';
         echo '<p><button type="submit" class="btn btn--primary">Send code</button></p>';
         echo '</form>';
+        $signupQuery = http_build_query(array_filter([
+            'client_id' => $clientId,
+            'redirect_uri' => $redirectUri,
+            'state' => $clientState,
+            'return_to' => $returnTo,
+            'code_challenge' => $codeChallenge,
+            'code_challenge_method' => $codeChallengeMethod,
+        ]));
+        $signupHref = Html::e(Html::basePath($config) . '/signup' . ($signupQuery !== '' ? '?' . $signupQuery : ''));
+        echo '<p class="text-small"><a href="' . $signupHref . '">New here? Request access</a></p>';
         echo '</div>';
         echo Html::pageEnd();
     }

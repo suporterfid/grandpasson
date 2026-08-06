@@ -206,6 +206,24 @@ ENV);
         ConfigLoader::load($this->tmpEnv);
     }
 
+    public function testParsesAdminNotificationEmails(): void
+    {
+        $this->writeEnv($this->minimalEnv() . "\nADMIN_NOTIFICATION_EMAILS= admin1@example.com, Admin2@Example.com ,,\n");
+
+        $config = ConfigLoader::load($this->tmpEnv);
+
+        $this->assertSame(['admin1@example.com', 'admin2@example.com'], $config['admin_notification_emails']);
+    }
+
+    public function testDefaultsAdminNotificationEmailsToEmptyList(): void
+    {
+        $this->writeEnv($this->minimalEnv());
+
+        $config = ConfigLoader::load($this->tmpEnv);
+
+        $this->assertSame([], $config['admin_notification_emails']);
+    }
+
     public function testSpecExtensionDocIsPresent(): void
     {
         $root = dirname(__DIR__, 2);
@@ -245,7 +263,7 @@ ENV;
             'SESSION_COOKIE_NAME', 'SESSION_COOKIE_SECURE', 'SESSION_TTL_MINUTES',
             'READER_SESSION_COOKIE_NAME',
             'DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD',
-            'ALLOWED_EMAIL_DOMAINS', 'MIGRATE_TOKEN', 'CRON_TOKEN', 'ADMIN_API_TOKEN',
+            'ALLOWED_EMAIL_DOMAINS', 'ADMIN_NOTIFICATION_EMAILS', 'MIGRATE_TOKEN', 'CRON_TOKEN', 'ADMIN_API_TOKEN',
             'ACCESS_TOKEN_TTL_SECONDS', 'ACCESS_TOKEN_TTL_MAX_SECONDS', 'AUDIT_RETENTION_DAYS',
             'RATE_LIMIT_OAUTH_MAX', 'RATE_LIMIT_OAUTH_WINDOW_SECONDS',
             'RATE_LIMIT_LOGIN_MAX', 'RATE_LIMIT_LOGIN_WINDOW_SECONDS', 'RATE_LIMIT_LOGIN_LOCKOUT_SECONDS',

@@ -37,6 +37,8 @@ Stop with `make down`.
 | `POST` | `/login/email/start` | Email OTP login: send the code |
 | `GET` | `/login/email/verify` | Email OTP login: code entry form |
 | `POST` | `/login/email/verify` | Email OTP login: verify the code |
+| `GET` | `/signup`, `/signup/complete` | Self-enrollment: request access (email OTP form, or OAuth-completion screen) |
+| `POST` | `/signup/start`, `/signup/verify`, `/signup/complete` | Self-enrollment: submit request / verify email / finish OAuth signup |
 | `POST` | `/logout` | End broker session |
 | `GET` | `/session` | Cookie session (same-host) |
 | `POST` | `/session/exchange` | RP auth-code → user (+ tenant/group claims) |
@@ -48,7 +50,7 @@ Stop with `make down`.
 | `GET` | `/site/{site_id}/login/{provider}` | Reader login for gated sites (R14) |
 | `GET` | `/site/{site_id}/session` | Reader session (isolated cookie) |
 
-Admin (CLI, ships in zip): `php cron/admin.php …` — tenants, groups, service clients, access tokens, PATs, published sites.
+Admin (CLI, ships in zip): `php cron/admin.php …` — tenants, groups, service clients, access tokens, PATs, published sites, and self-enrollment review (`user:list-pending`, `user:approve`, `user:reject`, `user:reopen`).
 
 ## Deploy
 

@@ -5,9 +5,13 @@ declare(strict_types=1);
 namespace GrandpaSSOn\Tests\Integration;
 
 use GrandpaSSOn\Infrastructure\Db\Connection;
+use GrandpaSSOn\Infrastructure\Providers\AccountNotFoundException;
+use GrandpaSSOn\Infrastructure\Providers\AccountPendingException;
+use GrandpaSSOn\Infrastructure\Providers\AccountRejectedException;
 use GrandpaSSOn\Infrastructure\Providers\NormalizedIdentity;
 use GrandpaSSOn\Infrastructure\Providers\ProviderException;
 use GrandpaSSOn\Infrastructure\Provisioning\UserProvisioner;
+use GrandpaSSOn\Domain\Uuid;
 use PDO;
 use PHPUnit\Framework\TestCase;
 
@@ -44,46 +48,23 @@ final class UserProvisionerTest extends TestCase
         }
     }
 
-    public function testCreatesUserInDevWithEmptyAllowlist(): void
+    public function testThrowsAccountNotFoundForUnknownIdentity(): void
     {
-        $provisioner = new UserProvisioner($this->pdo, [
-            'app_env' => 'dev',
-            'allowed_email_domains' => [],
-        ]);
+        $provisioner = new UserProvisioner($this->pdo);
 
-        $user = $provisioner->resolve(new NormalizedIdentity(
+        $this->expectException(AccountNotFoundException::class);
+        $provisioner->resolve(new NormalizedIdentity(
             'google',
-            'sub-1',
-            'alice@example.com',
+            'sub-unknown',
+            'nobody@example.com',
             true,
-            'Alice',
-            null,
-            null,
-            ['sub' => 'sub-1'],
+            'Nobody',
         ));
-
-        $this->assertSame('alice@example.com', $user->primaryEmail);
-        $this->assertTrue($user->isActive());
-
-        // Second login finds by provider subject.
-        $again = $provisioner->resolve(new NormalizedIdentity(
-            'google',
-            'sub-1',
-            'alice@example.com',
-            true,
-            'Alice Updated',
-            'https://example.com/a.png',
-        ));
-        $this->assertSame($user->id, $again->id);
-        $this->assertSame('Alice Updated', $again->displayName);
     }
 
-    public function testRefusesUnverifiedEmail(): void
+    public function testRefusesUnverifiedEmailOnUnknownIdentity(): void
     {
-        $provisioner = new UserProvisioner($this->pdo, [
-            'app_env' => 'dev',
-            'allowed_email_domains' => [],
-        ]);
+        $provisioner = new UserProvisioner($this->pdo);
 
         $this->expectException(ProviderException::class);
         $provisioner->resolve(new NormalizedIdentity(
@@ -95,40 +76,28 @@ final class UserProvisionerTest extends TestCase
         ));
     }
 
-    public function testRefusesAutoCreateOutsideDevWithoutAllowlist(): void
+    public function testResolvesExistingActiveUserBySubject(): void
     {
-        $provisioner = new UserProvisioner($this->pdo, [
-            'app_env' => 'prod',
-            'allowed_email_domains' => [],
-        ]);
+        $userId = $this->seedUser('alice@example.com', 'active', 'google', 'g-alice');
+        $provisioner = new UserProvisioner($this->pdo);
 
-        $this->expectException(ProviderException::class);
-        $this->expectExceptionMessage('ALLOWED_EMAIL_DOMAINS');
-        $provisioner->resolve(new NormalizedIdentity(
-            'github',
-            '99',
-            'bob@example.com',
+        $user = $provisioner->resolve(new NormalizedIdentity(
+            'google',
+            'g-alice',
+            'alice@example.com',
             true,
-            'Bob',
-            null,
-            'bob',
+            'Alice Updated',
         ));
+
+        $this->assertSame($userId, $user->id);
+        $this->assertSame('Alice Updated', $user->displayName);
+        $this->assertTrue($user->isActive());
     }
 
-    public function testLinksByVerifiedEmail(): void
+    public function testLinksNewProviderToExistingActiveUserByEmail(): void
     {
-        $provisioner = new UserProvisioner($this->pdo, [
-            'app_env' => 'dev',
-            'allowed_email_domains' => [],
-        ]);
-
-        $first = $provisioner->resolve(new NormalizedIdentity(
-            'google',
-            'g-1',
-            'link@example.com',
-            true,
-            'Link',
-        ));
+        $userId = $this->seedUser('link@example.com', 'active', 'google', 'g-1');
+        $provisioner = new UserProvisioner($this->pdo);
 
         $linked = $provisioner->resolve(new NormalizedIdentity(
             'github',
@@ -140,9 +109,80 @@ final class UserProvisionerTest extends TestCase
             'link',
         ));
 
-        $this->assertSame($first->id, $linked->id);
+        $this->assertSame($userId, $linked->id);
         $count = (int) $this->pdo->query('SELECT COUNT(*) FROM linked_identities')->fetchColumn();
         $this->assertSame(2, $count);
+    }
+
+    public function testThrowsAccountPendingForPendingUser(): void
+    {
+        $this->seedUser('pending@example.com', 'pending', 'google', 'g-pending');
+        $provisioner = new UserProvisioner($this->pdo);
+
+        $this->expectException(AccountPendingException::class);
+        $provisioner->resolve(new NormalizedIdentity(
+            'google',
+            'g-pending',
+            'pending@example.com',
+            true,
+            'Pending Person',
+        ));
+    }
+
+    public function testThrowsAccountRejectedForRejectedUser(): void
+    {
+        $this->seedUser('rejected@example.com', 'rejected', 'google', 'g-rejected');
+        $provisioner = new UserProvisioner($this->pdo);
+
+        $this->expectException(AccountRejectedException::class);
+        $provisioner->resolve(new NormalizedIdentity(
+            'google',
+            'g-rejected',
+            'rejected@example.com',
+            true,
+            'Rejected Person',
+        ));
+    }
+
+    public function testThrowsGenericProviderExceptionForDisabledUser(): void
+    {
+        $this->seedUser('disabled@example.com', 'disabled', 'google', 'g-disabled');
+        $provisioner = new UserProvisioner($this->pdo);
+
+        $this->expectException(ProviderException::class);
+        $this->expectExceptionMessage('disabled');
+        $provisioner->resolve(new NormalizedIdentity(
+            'google',
+            'g-disabled',
+            'disabled@example.com',
+            true,
+            'Disabled Person',
+        ));
+    }
+
+    /** Seeds a user + one linked identity directly via SQL — resolve() no longer creates accounts. */
+    private function seedUser(string $email, string $status, string $provider, string $subject): string
+    {
+        $id = Uuid::v4();
+        $now = gmdate('Y-m-d H:i:s');
+        $this->pdo->prepare(
+            'INSERT INTO users (id, primary_email, email_verified, display_name, avatar_url, status, created_at, updated_at)
+             VALUES (:id, :email, 1, :name, NULL, :status, :now, :now)'
+        )->execute(['id' => $id, 'email' => $email, 'name' => 'Seed User', 'status' => $status, 'now' => $now]);
+        $this->pdo->prepare(
+            'INSERT INTO linked_identities (id, user_id, provider, provider_subject, provider_email, provider_username, raw_claims_json, linked_at, last_login_at)
+             VALUES (:lid, :uid, :provider, :subject, :email, NULL, :raw, :now, :now)'
+        )->execute([
+            'lid' => Uuid::v4(),
+            'uid' => $id,
+            'provider' => $provider,
+            'subject' => $subject,
+            'email' => $email,
+            'raw' => '{}',
+            'now' => $now,
+        ]);
+
+        return $id;
     }
 
     private function rootPdo(): PDO

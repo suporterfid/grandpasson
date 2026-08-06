@@ -14,6 +14,7 @@ use GrandpaSSOn\Infrastructure\Db\JwtSigningKeyRepository;
 use GrandpaSSOn\Infrastructure\Db\PublishedSiteRepository;
 use GrandpaSSOn\Infrastructure\Db\ServiceClientRepository;
 use GrandpaSSOn\Infrastructure\Db\TenantRepository;
+use GrandpaSSOn\Infrastructure\Mail\MailerFactory;
 use PDO;
 
 /**
@@ -29,6 +30,7 @@ final class AdminCommandRunner
         private readonly AuditLogger $audit,
         private readonly PublishedSiteRepository $sites,
         private readonly JwtSigningKeyRepository $jwtKeys,
+        private readonly array $config = [],
     ) {
     }
 
@@ -46,6 +48,7 @@ final class AdminCommandRunner
             new AuditLogger($pdo),
             new PublishedSiteRepository($pdo),
             new JwtSigningKeyRepository($pdo, $secret, $appEnv),
+            $config,
         );
     }
 
@@ -73,6 +76,10 @@ final class AdminCommandRunner
             'jwt:key-rotate',
             'jwt:key-list',
             'jwt:key-retire',
+            'user:list-pending',
+            'user:approve',
+            'user:reject',
+            'user:reopen',
         ];
     }
 
@@ -103,6 +110,10 @@ final class AdminCommandRunner
             'jwt:key-rotate' => $this->jwtKeyRotate($flags),
             'jwt:key-list' => $this->jwtKeyList(),
             'jwt:key-retire' => $this->jwtKeyRetire($argv),
+            'user:list-pending' => $this->userListPending(),
+            'user:approve' => $this->userApprove($argv),
+            'user:reject' => $this->userReject($argv, $flags),
+            'user:reopen' => $this->userReopen($argv),
         };
     }
 
@@ -514,6 +525,130 @@ final class AdminCommandRunner
             return $byId;
         }
         throw new \InvalidArgumentException('Unknown tenant: ' . $ref);
+    }
+
+    /** @return array<string, mixed> */
+    private function userListPending(): array
+    {
+        $rows = $this->pdo->query(
+            "SELECT u.id AS user_id, u.primary_email AS email, u.display_name, sr.justification, sr.source, sr.created_at
+             FROM signup_requests sr
+             INNER JOIN users u ON u.id = sr.user_id
+             WHERE sr.status = 'pending'
+             ORDER BY sr.created_at ASC"
+        )->fetchAll(PDO::FETCH_ASSOC);
+
+        return ['ok' => true, 'pending' => $rows];
+    }
+
+    /** @param list<string> $argv @return array<string, mixed> */
+    private function userApprove(array $argv): array
+    {
+        $userId = (string) ($argv[0] ?? '');
+        if ($userId === '') {
+            throw new \InvalidArgumentException('Usage: user:approve <user_id>');
+        }
+        $user = $this->findPendingUser($userId);
+
+        $now = gmdate('Y-m-d H:i:s');
+        $this->pdo->prepare("UPDATE users SET status = 'active', updated_at = :now WHERE id = :id")
+            ->execute(['now' => $now, 'id' => $userId]);
+        $this->pdo->prepare(
+            "UPDATE signup_requests SET status = 'approved', reviewed_by = :by, reviewed_at = :now, updated_at = :now WHERE user_id = :id"
+        )->execute(['by' => 'cli', 'now' => $now, 'id' => $userId]);
+
+        $this->auditMutation('user.approve', $userId);
+        $this->notifyUser((string) $user['email'], 'Your account has been approved', $this->approvalEmailBody());
+
+        return ['ok' => true, 'user_id' => $userId, 'status' => 'active'];
+    }
+
+    /** @param list<string> $argv @return array<string, mixed> */
+    private function userReject(array $argv, array $flags): array
+    {
+        $userId = (string) ($argv[0] ?? '');
+        $reason = (string) ($flags['reason'] ?? '');
+        if ($userId === '') {
+            throw new \InvalidArgumentException('Usage: user:reject <user_id> --reason="..."');
+        }
+        $user = $this->findPendingUser($userId);
+
+        $now = gmdate('Y-m-d H:i:s');
+        $this->pdo->prepare("UPDATE users SET status = 'rejected', updated_at = :now WHERE id = :id")
+            ->execute(['now' => $now, 'id' => $userId]);
+        $this->pdo->prepare(
+            "UPDATE signup_requests SET status = 'rejected', reviewed_by = :by, reviewed_at = :now, rejection_reason = :reason, updated_at = :now WHERE user_id = :id"
+        )->execute(['by' => 'cli', 'now' => $now, 'reason' => $reason !== '' ? $reason : null, 'id' => $userId]);
+
+        $this->auditMutation('user.reject', $userId);
+        $this->notifyUser((string) $user['email'], 'Your signup was not approved', $this->rejectionEmailBody());
+
+        return ['ok' => true, 'user_id' => $userId, 'status' => 'rejected'];
+    }
+
+    /** @param list<string> $argv @return array<string, mixed> */
+    private function userReopen(array $argv): array
+    {
+        $userId = (string) ($argv[0] ?? '');
+        if ($userId === '') {
+            throw new \InvalidArgumentException('Usage: user:reopen <user_id>');
+        }
+        $this->assertUserExists($userId);
+
+        $now = gmdate('Y-m-d H:i:s');
+        $this->pdo->prepare("UPDATE users SET status = 'pending', updated_at = :now WHERE id = :id")
+            ->execute(['now' => $now, 'id' => $userId]);
+        $this->pdo->prepare(
+            "UPDATE signup_requests SET status = 'pending', reviewed_by = NULL, reviewed_at = NULL, rejection_reason = NULL, updated_at = :now WHERE user_id = :id"
+        )->execute(['now' => $now, 'id' => $userId]);
+
+        $this->auditMutation('user.reopen', $userId);
+
+        return ['ok' => true, 'user_id' => $userId, 'status' => 'pending'];
+    }
+
+    /** @return array<string, mixed> */
+    private function findPendingUser(string $userId): array
+    {
+        $stmt = $this->pdo->prepare('SELECT id, primary_email AS email, status FROM users WHERE id = :id LIMIT 1');
+        $stmt->execute(['id' => $userId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($row === false) {
+            throw new \InvalidArgumentException('Unknown subject user_id: ' . $userId);
+        }
+        if ($row['status'] !== 'pending') {
+            throw new \InvalidArgumentException('User is not pending: ' . $userId . ' (status=' . $row['status'] . ')');
+        }
+
+        return $row;
+    }
+
+    private function notifyUser(string $email, string $subject, string $body): void
+    {
+        $mailConfig = is_array($this->config['mail'] ?? null) ? $this->config['mail'] : [];
+        if ($mailConfig === []) {
+            return;
+        }
+        try {
+            (new MailerFactory($mailConfig))->make()->send($email, $subject, $body);
+        } catch (\Throwable $e) {
+            error_log('signup decision notification mail failed: ' . $e->getMessage());
+        }
+    }
+
+    private function approvalEmailBody(): string
+    {
+        $name = (string) ($this->config['broker']['name'] ?? 'GrandpaSSOn');
+        $loginUrl = rtrim((string) ($this->config['broker']['base_url'] ?? ''), '/');
+
+        return "Your {$name} account has been approved. You can now sign in: {$loginUrl}/login\n";
+    }
+
+    private function rejectionEmailBody(): string
+    {
+        $name = (string) ($this->config['broker']['name'] ?? 'GrandpaSSOn');
+
+        return "Your signup request for {$name} was not approved.\n";
     }
 
     private function assertUserExists(string $userId): void

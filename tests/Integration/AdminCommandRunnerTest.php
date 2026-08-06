@@ -197,6 +197,96 @@ final class AdminCommandRunnerTest extends TestCase
         return $decoded;
     }
 
+    public function testListPendingReturnsOnlyPendingSignups(): void
+    {
+        $userId = $this->seedPendingUser('pending@example.com', 'Pending Person', 'I need access');
+
+        $result = $this->admin->run('user:list-pending', []);
+
+        $this->assertTrue($result['ok']);
+        $this->assertCount(1, $result['pending']);
+        $this->assertSame('pending@example.com', $result['pending'][0]['email']);
+        $this->assertSame($userId, $result['pending'][0]['user_id']);
+    }
+
+    public function testApprovePromotesUserToActive(): void
+    {
+        $userId = $this->seedPendingUser('approve-me@example.com', 'Approve Me', 'Reason');
+
+        $result = $this->admin->run('user:approve', [$userId]);
+
+        $this->assertTrue($result['ok']);
+        $this->assertSame('active', $result['status']);
+        $status = $this->pdo->query('SELECT status FROM users WHERE id = ' . $this->pdo->quote($userId))->fetchColumn();
+        $this->assertSame('active', $status);
+        $requestStatus = $this->pdo->query('SELECT status FROM signup_requests WHERE user_id = ' . $this->pdo->quote($userId))->fetchColumn();
+        $this->assertSame('approved', $requestStatus);
+    }
+
+    public function testApproveRejectsNonPendingUser(): void
+    {
+        $userId = $this->seedPendingUser('already-active@example.com', 'Already Active', 'Reason');
+        $this->admin->run('user:approve', [$userId]);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->admin->run('user:approve', [$userId]);
+    }
+
+    public function testRejectStoresReasonAndBlocksLogin(): void
+    {
+        $userId = $this->seedPendingUser('reject-me@example.com', 'Reject Me', 'Reason');
+
+        $result = $this->admin->run('user:reject', [$userId], ['reason' => 'Not a valid business need']);
+
+        $this->assertTrue($result['ok']);
+        $this->assertSame('rejected', $result['status']);
+        $row = $this->pdo->query(
+            'SELECT status, rejection_reason FROM signup_requests WHERE user_id = ' . $this->pdo->quote($userId)
+        )->fetch(PDO::FETCH_ASSOC);
+        $this->assertSame('rejected', $row['status']);
+        $this->assertSame('Not a valid business need', $row['rejection_reason']);
+    }
+
+    public function testReopenMovesRejectedBackToPending(): void
+    {
+        $userId = $this->seedPendingUser('reopen-me@example.com', 'Reopen Me', 'Reason');
+        $this->admin->run('user:reject', [$userId], ['reason' => 'try again later']);
+
+        $result = $this->admin->run('user:reopen', [$userId]);
+
+        $this->assertTrue($result['ok']);
+        $this->assertSame('pending', $result['status']);
+        $row = $this->pdo->query(
+            'SELECT status, reviewed_by, rejection_reason FROM signup_requests WHERE user_id = ' . $this->pdo->quote($userId)
+        )->fetch(PDO::FETCH_ASSOC);
+        $this->assertSame('pending', $row['status']);
+        $this->assertNull($row['reviewed_by']);
+        $this->assertNull($row['rejection_reason']);
+    }
+
+    private function seedPendingUser(string $email, string $name, string $justification): string
+    {
+        $userId = Uuid::v4();
+        $now = gmdate('Y-m-d H:i:s');
+        $this->pdo->prepare(
+            'INSERT INTO users (id, primary_email, email_verified, display_name, avatar_url, status, created_at, updated_at)
+             VALUES (:id, :email, 1, :name, NULL, \'pending\', :now, :now)'
+        )->execute(['id' => $userId, 'email' => $email, 'name' => $name, 'now' => $now]);
+        $this->pdo->prepare(
+            'INSERT INTO signup_requests (id, user_id, email, display_name, justification, source, status, created_at, updated_at)
+             VALUES (:sid, :uid, :email, :name, :justification, \'email\', \'pending\', :now, :now)'
+        )->execute([
+            'sid' => Uuid::v4(),
+            'uid' => $userId,
+            'email' => $email,
+            'name' => $name,
+            'justification' => $justification,
+            'now' => $now,
+        ]);
+
+        return $userId;
+    }
+
     private function seedUser(string $email): string
     {
         $id = Uuid::v4();

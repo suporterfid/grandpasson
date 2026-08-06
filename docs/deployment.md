@@ -56,6 +56,7 @@ Set at least:
 | `SESSION_COOKIE_SECURE` | `true` behind HTTPS (forced `true` when HTTPS enforcement is on) |
 | `DB_*` | MySQL credentials from cPanel |
 | `ALLOWED_EMAIL_DOMAINS` | Comma-separated; empty outside `APP_ENV=dev` refuses auto-create |
+| `ADMIN_NOTIFICATION_EMAILS` | Comma-separated; leave empty to disable admin email alerts on new signup requests — approvals still work via CLI/`/admin` |
 | `MIGRATE_TOKEN` | Leave empty unless you intentionally expose HTTP migrate |
 | `CRON_TOKEN` | Leave empty unless a host can't run CLI cron and you must expose `cron/cleanup_*.php` over HTTP (see §5) |
 | `ADMIN_API_TOKEN` | Leave empty to disable `/admin` UI + `/admin/api`; set a long random secret to enable |

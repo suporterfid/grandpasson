@@ -17,6 +17,7 @@ use GrandpaSSOn\Http\Controllers\OAuthRevokeController;
 use GrandpaSSOn\Http\Controllers\OAuthTokenController;
 use GrandpaSSOn\Http\Controllers\SessionController;
 use GrandpaSSOn\Http\Controllers\SessionExchangeController;
+use GrandpaSSOn\Http\Controllers\SignupController;
 use GrandpaSSOn\Http\Controllers\SiteReaderController;
 use GrandpaSSOn\Http\Controllers\UserPatController;
 
@@ -39,6 +40,12 @@ final class AppRoutes
             ['POST', '/login/email/start', EmailOtpLoginController::class, 'start'],
             ['GET', '/login/email/verify', EmailOtpLoginController::class, 'verifyForm'],
             ['POST', '/login/email/verify', EmailOtpLoginController::class, 'verify'],
+            ['GET', '/signup', SignupController::class, 'form'],
+            ['POST', '/signup/start', SignupController::class, 'start'],
+            ['GET', '/signup/verify', SignupController::class, 'verifyForm'],
+            ['POST', '/signup/verify', SignupController::class, 'verify'],
+            ['GET', '/signup/complete', SignupController::class, 'complete'],
+            ['POST', '/signup/complete', SignupController::class, 'completeSubmit'],
             ['GET', '/login/{provider}', LoginController::class, 'start'],
             ['GET', '/callback/{provider}', CallbackController::class, 'handle'],
             ['POST', '/logout', LogoutController::class, 'handle'],
