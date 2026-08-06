@@ -8,6 +8,8 @@ use GrandpaSSOn\Infrastructure\Audit\AuditLogger;
 use GrandpaSSOn\Infrastructure\Auth\AuthCodeService;
 use GrandpaSSOn\Infrastructure\Db\Connection;
 use GrandpaSSOn\Infrastructure\Providers\AccountNotFoundException;
+use GrandpaSSOn\Infrastructure\Providers\AccountPendingException;
+use GrandpaSSOn\Infrastructure\Providers\AccountRejectedException;
 use GrandpaSSOn\Infrastructure\Providers\ProviderException;
 use GrandpaSSOn\Infrastructure\Providers\ProviderFactory;
 use GrandpaSSOn\Infrastructure\Provisioning\UserProvisioner;
@@ -122,6 +124,12 @@ final class CallbackController
                 'raw_claims' => $identity->rawClaims,
             ];
             Http::redirect(Html::basePath($config) . '/signup/complete');
+        } catch (AccountPendingException $e) {
+            $audit->log('login.failure', null, $providerName, Http::clientIp());
+            $this->fail($config, 403, 'account_pending', 'Your account is awaiting admin approval.');
+        } catch (AccountRejectedException $e) {
+            $audit->log('login.failure', null, $providerName, Http::clientIp());
+            $this->fail($config, 403, 'account_rejected', 'Your signup was not approved.');
         } catch (ProviderException $e) {
             $audit->log('login.failure', null, $providerName, Http::clientIp());
             $this->fail($config, 400, 'login_failed', $e->getMessage());

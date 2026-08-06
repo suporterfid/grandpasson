@@ -10,6 +10,8 @@ use GrandpaSSOn\Infrastructure\Auth\EmailOtpService;
 use GrandpaSSOn\Infrastructure\Auth\EmailOtpVerifyResult;
 use GrandpaSSOn\Infrastructure\Db\Connection;
 use GrandpaSSOn\Infrastructure\Mail\MailerFactory;
+use GrandpaSSOn\Infrastructure\Providers\AccountPendingException;
+use GrandpaSSOn\Infrastructure\Providers\AccountRejectedException;
 use GrandpaSSOn\Infrastructure\Providers\NormalizedIdentity;
 use GrandpaSSOn\Infrastructure\Providers\ProviderException;
 use GrandpaSSOn\Infrastructure\Provisioning\UserProvisioner;
@@ -214,6 +216,14 @@ final class EmailOtpLoginController
                 'code' => $rawCode,
                 'state' => $clientState,
             ]));
+        } catch (AccountPendingException $e) {
+            unset($_SESSION['email_otp_id']);
+            $audit->log('login.failure', null, 'email_otp', Http::clientIp());
+            $this->fail($config, 403, 'Your account is awaiting admin approval.');
+        } catch (AccountRejectedException $e) {
+            unset($_SESSION['email_otp_id']);
+            $audit->log('login.failure', null, 'email_otp', Http::clientIp());
+            $this->fail($config, 403, 'Your signup was not approved.');
         } catch (ProviderException $e) {
             unset($_SESSION['email_otp_id']);
             $audit->log('login.failure', null, 'email_otp', Http::clientIp());

@@ -178,7 +178,7 @@ final class EmailOtpLoginControllerTest extends TestCase
         $this->assertArrayNotHasKey('email_otp_id', $_SESSION);
     }
 
-    public function testStartIssuesCodeAndVerifyCompletesRoundTripToRp(): void
+    public function testStartIssuesCodeThenVerifyForUnknownEmailShowsNoAccountFound(): void
     {
         $csrf = Csrf::token();
         $_POST = [
@@ -202,12 +202,8 @@ final class EmailOtpLoginControllerTest extends TestCase
         $row = $this->pdo->query('SELECT code_hash FROM email_otp_codes WHERE id = ' . $this->pdo->quote($id))
             ->fetch(PDO::FETCH_ASSOC);
         $this->assertNotFalse($row);
-        // The rendered page must never leak the raw code or its hash.
         $this->assertStringNotContainsString((string) $row['code_hash'], $startBody);
 
-        // Drive the verify() HTTP step with a code minted directly via the
-        // service (mirrors what the mailer would have received from start(),
-        // without sending real mail in the test).
         $started = (new EmailOtpService($this->pdo))->start(
             'newuser@example.com',
             [
@@ -229,23 +225,87 @@ final class EmailOtpLoginControllerTest extends TestCase
 
         ob_start();
         (new EmailOtpLoginController())->verify($this->config, []);
-        ob_get_clean();
+        $body = (string) ob_get_clean();
 
-        $this->assertSame(302, http_response_code());
+        $this->assertSame(400, http_response_code());
         http_response_code(200);
         $this->assertArrayNotHasKey('email_otp_id', $_SESSION);
-        $this->assertArrayHasKey('user_id', $_SESSION);
+        $this->assertArrayNotHasKey('user_id', $_SESSION);
+        $count = (int) $this->pdo->query("SELECT COUNT(*) FROM users WHERE primary_email = 'newuser@example.com'")->fetchColumn();
+        $this->assertSame(0, $count);
+        $this->assertStringContainsString('Sign-in failed', $body);
+    }
 
-        $user = $this->pdo->query("SELECT id FROM users WHERE primary_email = 'newuser@example.com'")
-            ->fetch(PDO::FETCH_ASSOC);
-        $this->assertNotFalse($user);
-        $this->assertSame($user['id'], $_SESSION['user_id']);
+    public function testLoginBlockedForPendingUser(): void
+    {
+        $now = gmdate('Y-m-d H:i:s');
+        $this->pdo->prepare(
+            'INSERT INTO users (id, primary_email, email_verified, display_name, avatar_url, status, created_at, updated_at)
+             VALUES (:id, :email, 1, :name, NULL, \'pending\', :now, :now)'
+        )->execute(['id' => \GrandpaSSOn\Domain\Uuid::v4(), 'email' => 'pending.user@example.com', 'name' => 'Pending User', 'now' => $now]);
 
-        $linked = $this->pdo->query(
-            "SELECT provider FROM linked_identities WHERE provider_subject = 'newuser@example.com'"
-        )->fetch(PDO::FETCH_ASSOC);
-        $this->assertNotFalse($linked);
-        $this->assertSame('email_otp', $linked['provider']);
+        $started = (new EmailOtpService($this->pdo))->start(
+            'pending.user@example.com',
+            [
+                'client_id' => 'cid',
+                'redirect_uri' => 'https://app.example/cb',
+                'client_state' => 'client-state',
+                'return_to' => null,
+                'code_challenge' => null,
+                'code_challenge_method' => null,
+            ],
+            600,
+            5,
+            6,
+        );
+        $_SESSION['email_otp_id'] = $started['id'];
+
+        $csrf = Csrf::token();
+        $_POST = ['csrf' => $csrf, 'code' => $started['code']];
+        ob_start();
+        (new EmailOtpLoginController())->verify($this->config, []);
+        $body = (string) ob_get_clean();
+
+        $this->assertSame(403, http_response_code());
+        http_response_code(200);
+        $this->assertStringContainsString('awaiting admin approval', $body);
+        $this->assertArrayNotHasKey('user_id', $_SESSION);
+    }
+
+    public function testLoginBlockedForRejectedUser(): void
+    {
+        $now = gmdate('Y-m-d H:i:s');
+        $this->pdo->prepare(
+            'INSERT INTO users (id, primary_email, email_verified, display_name, avatar_url, status, created_at, updated_at)
+             VALUES (:id, :email, 1, :name, NULL, \'rejected\', :now, :now)'
+        )->execute(['id' => \GrandpaSSOn\Domain\Uuid::v4(), 'email' => 'rejected.user@example.com', 'name' => 'Rejected User', 'now' => $now]);
+
+        $started = (new EmailOtpService($this->pdo))->start(
+            'rejected.user@example.com',
+            [
+                'client_id' => 'cid',
+                'redirect_uri' => 'https://app.example/cb',
+                'client_state' => 'client-state',
+                'return_to' => null,
+                'code_challenge' => null,
+                'code_challenge_method' => null,
+            ],
+            600,
+            5,
+            6,
+        );
+        $_SESSION['email_otp_id'] = $started['id'];
+
+        $csrf = Csrf::token();
+        $_POST = ['csrf' => $csrf, 'code' => $started['code']];
+        ob_start();
+        (new EmailOtpLoginController())->verify($this->config, []);
+        $body = (string) ob_get_clean();
+
+        $this->assertSame(403, http_response_code());
+        http_response_code(200);
+        $this->assertStringContainsString('not approved', $body);
+        $this->assertArrayNotHasKey('user_id', $_SESSION);
     }
 
     public function testVerifyWithWrongCodeRerendersFormWithRemainingAttempts(): void
