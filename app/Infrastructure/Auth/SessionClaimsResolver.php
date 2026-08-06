@@ -39,7 +39,7 @@ final class SessionClaimsResolver
     }
 
     /**
-     * @param array{id: string, primary_email: string, display_name: string, status: string} $user
+     * @param array{id: string, primary_email: string, display_name: string, status: string, locale: string} $user
      * @param string|null $tenantHint Tenant id or slug from the RP (exchange body / query)
      * @param bool $persistHint When true and hint resolves, store as sticky preference
      * @return array{
@@ -47,7 +47,8 @@ final class SessionClaimsResolver
      *   tenant: array{id: string, slug: string, role: string}|null,
      *   tenants: list<array{id: string, slug: string, role: string}>,
      *   groups: list<string>,
-     *   scopes: list<string>
+     *   scopes: list<string>,
+     *   locale: string
      * }
      */
     public function resolve(array $user, ?string $tenantHint = null, bool $persistHint = false): array
@@ -75,6 +76,7 @@ final class SessionClaimsResolver
             'tenants' => $tenants,
             'groups' => $groups,
             'scopes' => self::DEFAULT_SCOPES,
+            'locale' => $user['locale'],
         ];
     }
 

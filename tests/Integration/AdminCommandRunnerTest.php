@@ -66,6 +66,7 @@ final class AdminCommandRunnerTest extends TestCase
             'primary_email' => 'editor@acme.test',
             'display_name' => 'Editor',
             'status' => 'active',
+            'locale' => 'pt-BR',
         ]);
 
         $this->assertSame('acme', $claims['tenant']['slug']);

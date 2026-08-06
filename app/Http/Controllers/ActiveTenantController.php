@@ -32,7 +32,7 @@ final class ActiveTenantController
         }
 
         $stmt = $pdo->prepare(
-            'SELECT id, primary_email, display_name, status FROM users WHERE id = :id LIMIT 1'
+            'SELECT id, primary_email, display_name, status, locale FROM users WHERE id = :id LIMIT 1'
         );
         $stmt->execute(['id' => $userId]);
         $row = $stmt->fetch(\PDO::FETCH_ASSOC);
@@ -47,6 +47,7 @@ final class ActiveTenantController
             'primary_email' => (string) $row['primary_email'],
             'display_name' => (string) $row['display_name'],
             'status' => (string) $row['status'],
+            'locale' => (string) $row['locale'],
         ]);
 
         Http::json(200, [
@@ -118,7 +119,7 @@ final class ActiveTenantController
         );
 
         $stmt = $pdo->prepare(
-            'SELECT id, primary_email, display_name, status FROM users WHERE id = :id LIMIT 1'
+            'SELECT id, primary_email, display_name, status, locale FROM users WHERE id = :id LIMIT 1'
         );
         $stmt->execute(['id' => $userId]);
         $row = $stmt->fetch(\PDO::FETCH_ASSOC);
@@ -127,6 +128,7 @@ final class ActiveTenantController
             'primary_email' => (string) $row['primary_email'],
             'display_name' => (string) $row['display_name'],
             'status' => (string) $row['status'],
+            'locale' => (string) $row['locale'],
         ]);
 
         Http::json(200, [

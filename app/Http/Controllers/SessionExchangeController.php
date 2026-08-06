@@ -66,7 +66,7 @@ final class SessionExchangeController
             return;
         }
 
-        $stmt = $pdo->prepare('SELECT id, primary_email, display_name, status FROM users WHERE id = :id LIMIT 1');
+        $stmt = $pdo->prepare('SELECT id, primary_email, display_name, status, locale FROM users WHERE id = :id LIMIT 1');
         $stmt->execute(['id' => $userId]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         if ($row === false) {
@@ -82,6 +82,7 @@ final class SessionExchangeController
                 'primary_email' => (string) $row['primary_email'],
                 'display_name' => (string) $row['display_name'],
                 'status' => (string) $row['status'],
+                'locale' => (string) $row['locale'],
             ],
             isset($body['tenant']) ? (string) $body['tenant'] : null,
             true,
