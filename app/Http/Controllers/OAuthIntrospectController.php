@@ -9,6 +9,7 @@ use GrandpaSSOn\Infrastructure\Auth\ServiceClientAuthenticator;
 use GrandpaSSOn\Infrastructure\Db\AccessTokenRepository;
 use GrandpaSSOn\Infrastructure\Db\Connection;
 use GrandpaSSOn\Infrastructure\Db\ServiceClientRepository;
+use GrandpaSSOn\Infrastructure\Db\UserLocaleRepository;
 use GrandpaSSOn\Support\Http;
 use GrandpaSSOn\Support\RateLimitGate;
 
@@ -93,6 +94,10 @@ final class OAuthIntrospectController
             return;
         }
 
+        $locale = $record->subjectUserId !== null
+            ? (new UserLocaleRepository($pdo))->get($record->subjectUserId)
+            : null;
+
         Http::json(200, [
             'active' => true,
             'sub' => $record->subjectUserId,
@@ -103,6 +108,7 @@ final class OAuthIntrospectController
             'exp' => $exp,
             'token_use' => $record->isPat() ? 'pat' : 'access',
             'token_type' => $record->kind,
+            'locale' => $locale,
         ]);
     }
 }

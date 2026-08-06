@@ -100,6 +100,25 @@ final class OAuthIntrospectControllerTest extends TestCase
         $this->assertNotNull($row['last_used_at']);
     }
 
+    public function testActiveTokenWithSubjectReturnsUserLocale(): void
+    {
+        $userId = $this->createUser('locale-user@example.com', 'pt-BR');
+        $issued = $this->tokens->issuePat($userId, 'kb:read', 'workspace/abc', 900);
+
+        $payload = $this->postIntrospect($issued['token']);
+
+        $this->assertSame($userId, $payload['sub']);
+        $this->assertSame('pt-BR', $payload['locale']);
+    }
+
+    public function testActiveTokenWithoutSubjectHasNullLocale(): void
+    {
+        $issued = $this->tokens->issue('svc-rp', 'kb:read', 'workspace/abc', 900);
+        $payload = $this->postIntrospect($issued['token']);
+
+        $this->assertNull($payload['locale']);
+    }
+
     public function testRevokedTokenReturnsExactlyInactive(): void
     {
         $issued = $this->tokens->issue('svc-rp', 'kb:read', 'workspace/abc', 900);
@@ -156,6 +175,24 @@ final class OAuthIntrospectControllerTest extends TestCase
         $this->assertIsArray($decoded);
 
         return $decoded;
+    }
+
+    private function createUser(string $email, string $locale): string
+    {
+        $id = bin2hex(random_bytes(16));
+        $now = gmdate('Y-m-d H:i:s');
+        $this->pdo->prepare(
+            'INSERT INTO users (id, primary_email, email_verified, display_name, avatar_url, status, locale, created_at, updated_at)
+             VALUES (:id, :email, 1, :name, NULL, \'active\', :locale, :now, :now)'
+        )->execute([
+            'id' => $id,
+            'email' => $email,
+            'name' => 'Introspect Test User',
+            'locale' => $locale,
+            'now' => $now,
+        ]);
+
+        return $id;
     }
 
     private function rootPdo(): PDO
