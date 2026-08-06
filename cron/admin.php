@@ -30,6 +30,7 @@ declare(strict_types=1);
  *   user:approve <user_id>
  *   user:reject <user_id> --reason="..."
  *   user:reopen <user_id>
+ *   user:set-locale <user_id> <pt-BR|en>
  */
 
 use GrandpaSSOn\Config\ConfigLoader;
@@ -71,6 +72,7 @@ Verbs:
   user:approve <user_id>
   user:reject <user_id> --reason="..."
   user:reopen <user_id>
+  user:set-locale <user_id> <pt-BR|en>
 
 TXT);
     exit(0);

@@ -80,6 +80,7 @@ final class AdminCommandRunner
             'user:approve',
             'user:reject',
             'user:reopen',
+            'user:set-locale',
         ];
     }
 
@@ -114,6 +115,7 @@ final class AdminCommandRunner
             'user:approve' => $this->userApprove($argv),
             'user:reject' => $this->userReject($argv, $flags),
             'user:reopen' => $this->userReopen($argv),
+            'user:set-locale' => $this->userSetLocale($argv),
         };
     }
 
@@ -605,6 +607,27 @@ final class AdminCommandRunner
         $this->auditMutation('user.reopen', $userId);
 
         return ['ok' => true, 'user_id' => $userId, 'status' => 'pending'];
+    }
+
+    /** @param list<string> $argv @return array<string, mixed> */
+    private function userSetLocale(array $argv): array
+    {
+        $userId = (string) ($argv[0] ?? '');
+        $locale = (string) ($argv[1] ?? '');
+        if ($userId === '' || $locale === '') {
+            throw new \InvalidArgumentException('Usage: user:set-locale <user_id> <locale>');
+        }
+        if (!\GrandpaSSOn\Domain\Locale::isSupported($locale)) {
+            throw new \InvalidArgumentException(
+                'locale must be one of: ' . implode(', ', \GrandpaSSOn\Domain\Locale::SUPPORTED)
+            );
+        }
+        $this->assertUserExists($userId);
+
+        (new \GrandpaSSOn\Infrastructure\Db\UserLocaleRepository($this->pdo))->set($userId, $locale);
+        $this->auditMutation('user.set_locale', $userId);
+
+        return ['ok' => true, 'user_id' => $userId, 'locale' => $locale];
     }
 
     /** @return array<string, mixed> */
