@@ -44,6 +44,8 @@ final class AppRoutes
             ['POST', '/signup/start', SignupController::class, 'start'],
             ['GET', '/signup/verify', SignupController::class, 'verifyForm'],
             ['POST', '/signup/verify', SignupController::class, 'verify'],
+            ['GET', '/signup/complete', SignupController::class, 'complete'],
+            ['POST', '/signup/complete', SignupController::class, 'completeSubmit'],
             ['GET', '/login/{provider}', LoginController::class, 'start'],
             ['GET', '/callback/{provider}', CallbackController::class, 'handle'],
             ['POST', '/logout', LogoutController::class, 'handle'],

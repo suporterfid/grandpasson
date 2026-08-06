@@ -7,6 +7,7 @@ namespace GrandpaSSOn\Http\Controllers;
 use GrandpaSSOn\Infrastructure\Audit\AuditLogger;
 use GrandpaSSOn\Infrastructure\Auth\AuthCodeService;
 use GrandpaSSOn\Infrastructure\Db\Connection;
+use GrandpaSSOn\Infrastructure\Providers\AccountNotFoundException;
 use GrandpaSSOn\Infrastructure\Providers\ProviderException;
 use GrandpaSSOn\Infrastructure\Providers\ProviderFactory;
 use GrandpaSSOn\Infrastructure\Provisioning\UserProvisioner;
@@ -110,6 +111,17 @@ final class CallbackController
                 'state' => $clientState,
             ]);
             Http::redirect($target);
+        } catch (AccountNotFoundException $e) {
+            $_SESSION['pending_signup'] = [
+                'provider' => $identity->provider,
+                'subject' => $identity->subject,
+                'email' => $identity->email,
+                'name' => $identity->name,
+                'avatar_url' => $identity->avatarUrl,
+                'username' => $identity->username,
+                'raw_claims' => $identity->rawClaims,
+            ];
+            Http::redirect(Html::basePath($config) . '/signup/complete');
         } catch (ProviderException $e) {
             $audit->log('login.failure', null, $providerName, Http::clientIp());
             $this->fail($config, 400, 'login_failed', $e->getMessage());

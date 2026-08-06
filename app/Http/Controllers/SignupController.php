@@ -214,6 +214,93 @@ final class SignupController
         }
     }
 
+    /** @param array<string, mixed> $config @param array<string, string> $params */
+    public function complete(array $config, array $params = []): void
+    {
+        $pending = $_SESSION['pending_signup'] ?? null;
+        if (!is_array($pending)) {
+            Http::redirect(Html::basePath($config) . '/login');
+
+            return;
+        }
+
+        $this->renderComplete($config, (string) ($pending['name'] ?? ''), (string) $pending['email']);
+    }
+
+    /** @param array<string, mixed> $config @param array<string, string> $params */
+    public function completeSubmit(array $config, array $params = []): void
+    {
+        $pdo = Connection::get($config['db']);
+        $pending = $_SESSION['pending_signup'] ?? null;
+        if (!is_array($pending)) {
+            Http::redirect(Html::basePath($config) . '/login');
+
+            return;
+        }
+
+        if (!Csrf::validate((string) ($_POST['csrf'] ?? ''))) {
+            $this->fail($config, 400, 'Your session expired. Please start again.');
+
+            return;
+        }
+
+        $name = trim((string) ($_POST['name'] ?? (string) ($pending['name'] ?? '')));
+        $justification = trim((string) ($_POST['justification'] ?? ''));
+
+        if ($name === '' || $justification === '') {
+            $this->renderComplete($config, $name, (string) $pending['email'], 'Name and justification are required.');
+
+            return;
+        }
+
+        try {
+            $identity = new NormalizedIdentity(
+                provider: (string) $pending['provider'],
+                subject: (string) $pending['subject'],
+                email: (string) $pending['email'],
+                emailVerified: true,
+                name: $name,
+                avatarUrl: $pending['avatar_url'] ?? null,
+                username: $pending['username'] ?? null,
+                rawClaims: is_array($pending['raw_claims'] ?? null) ? $pending['raw_claims'] : [],
+            );
+            $this->signupService($pdo, $config)->createPending($identity, $name, $justification, (string) $pending['provider']);
+
+            unset($_SESSION['pending_signup'], $_SESSION['oauth']);
+            $this->renderPending($config);
+        } catch (ProviderException $e) {
+            $this->renderComplete($config, $name, (string) $pending['email'], $e->getMessage());
+        }
+    }
+
+    /** @param array<string, mixed> $config */
+    private function renderComplete(array $config, string $name, string $email, ?string $error = null): void
+    {
+        header('Content-Type: text/html; charset=utf-8');
+        $brokerName = (string) ($config['broker']['name'] ?? 'GrandpaSSOn');
+        $action = Html::e(Html::basePath($config) . '/signup/complete');
+
+        echo Html::pageStart($config, $brokerName . ' - Request access');
+        echo '<div class="prose">';
+        echo '<h1>Request access</h1>';
+        echo '<p class="lead">Your email is verified. Tell us why you need access — an admin will review your request.</p>';
+        if ($error !== null) {
+            echo '<p class="text-small">' . Html::e($error) . '</p>';
+        }
+        echo '<form method="post" action="' . $action . '">';
+        echo '<input type="hidden" name="csrf" value="' . Html::e(Csrf::token()) . '">';
+        echo '<label for="name">Your name</label>';
+        echo '<input type="text" id="name" name="name" value="' . Html::e($name) . '" required>';
+        echo '<label>Email address</label>';
+        echo '<input type="email" value="' . Html::e($email) . '" readonly disabled>';
+        echo '<label for="justification">Why do you need access?</label>';
+        echo '<textarea id="justification" name="justification" rows="3" required></textarea>';
+        echo '<p><button type="submit" class="btn btn--primary">Request access</button></p>';
+        echo '</form>';
+        echo '</div>';
+        echo Html::pageEnd();
+    }
+
     /** @param array<string, mixed> $config */
     private function signupService(\PDO $pdo, array $config): SignupService
     {
