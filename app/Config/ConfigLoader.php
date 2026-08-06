@@ -14,6 +14,7 @@ final class ConfigLoader
      *   session: array{cookie_name: string, secure: bool, ttl_minutes: int, reader_cookie_name: string},
      *   db: array{host: string, port: int, name: string, user: string, password: string},
      *   allowed_email_domains: list<string>,
+     *   admin_notification_emails: list<string>,
      *   migrate_token: string,
      *   cron_token: string,
      *   admin_api_token: string,
@@ -82,6 +83,15 @@ final class ConfigLoader
             static fn (string $d): bool => $d !== ''
         ));
 
+        $adminEmailsRaw = $env['ADMIN_NOTIFICATION_EMAILS'] ?? '';
+        $adminEmails = array_values(array_filter(
+            array_map(
+                static fn (string $e): string => strtolower(trim($e)),
+                explode(',', $adminEmailsRaw)
+            ),
+            static fn (string $e): bool => $e !== ''
+        ));
+
         $tokenTtlMax = self::positiveInt($env['ACCESS_TOKEN_TTL_MAX_SECONDS'] ?? '', 3600);
         $tokenTtl = self::positiveInt($env['ACCESS_TOKEN_TTL_SECONDS'] ?? '', 900);
         if ($tokenTtl > $tokenTtlMax) {
@@ -118,6 +128,7 @@ final class ConfigLoader
                 'prefix' => $env['DB_PREFIX'] ?? '',
             ],
             'allowed_email_domains' => $domains,
+            'admin_notification_emails' => $adminEmails,
             'migrate_token' => $env['MIGRATE_TOKEN'] ?? '',
             'cron_token' => $env['CRON_TOKEN'] ?? '',
             'admin_api_token' => $env['ADMIN_API_TOKEN'] ?? '',
@@ -203,6 +214,7 @@ final class ConfigLoader
             'DB_USER',
             'DB_PASSWORD',
             'ALLOWED_EMAIL_DOMAINS',
+            'ADMIN_NOTIFICATION_EMAILS',
             'MIGRATE_TOKEN',
             'CRON_TOKEN',
             'ADMIN_API_TOKEN',
