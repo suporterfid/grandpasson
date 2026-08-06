@@ -26,6 +26,10 @@ declare(strict_types=1);
  *   jwt:key-rotate [--bits=2048]
  *   jwt:key-list
  *   jwt:key-retire <kid>
+ *   user:list-pending
+ *   user:approve <user_id>
+ *   user:reject <user_id> --reason="..."
+ *   user:reopen <user_id>
  */
 
 use GrandpaSSOn\Config\ConfigLoader;
@@ -63,6 +67,10 @@ Verbs:
   jwt:key-rotate [--bits=2048]
   jwt:key-list
   jwt:key-retire <kid>
+  user:list-pending
+  user:approve <user_id>
+  user:reject <user_id> --reason="..."
+  user:reopen <user_id>
 
 TXT);
     exit(0);
