@@ -119,6 +119,24 @@ final class EmailOtpLoginControllerTest extends TestCase
         $this->assertStringContainsString('Sign-in failed', $body);
     }
 
+    public function testFormIncludesSignupLink(): void
+    {
+        $_GET = [
+            'client_id' => 'cid',
+            'redirect_uri' => 'https://app.example/cb',
+            'state' => 'client-state',
+            'code_challenge' => str_repeat('a', 43),
+            'code_challenge_method' => 'S256',
+        ];
+
+        ob_start();
+        (new EmailOtpLoginController())->form($this->config, []);
+        $body = (string) ob_get_clean();
+
+        $this->assertStringContainsString('/signup?client_id=cid&amp;redirect_uri=', $body);
+        $this->assertStringContainsString('New here? Request access', $body);
+    }
+
     public function testFormRendersEmailInputWithHiddenRpParams(): void
     {
         $_GET = [

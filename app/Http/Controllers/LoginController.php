@@ -42,6 +42,8 @@ final class LoginController
         $query = http_build_query($_GET);
         $emailHref = Html::e(Html::basePath($config) . '/login/email' . ($query !== '' ? '?' . $query : ''));
         echo '<p class="text-small"><a href="' . $emailHref . '">Or continue with email</a></p>';
+        $signupHref = Html::e(Html::basePath($config) . '/signup' . ($query !== '' ? '?' . $query : ''));
+        echo '<p class="text-small"><a href="' . $signupHref . '">New here? Request access</a></p>';
         echo '</div>';
         echo Html::pageEnd();
     }

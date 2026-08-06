@@ -51,6 +51,22 @@ final class LoginControllerChooserTest extends TestCase
         );
     }
 
+    public function testChooserIncludesSignupLink(): void
+    {
+        $config = ['broker' => ['name' => 'GrandpaSSOn', 'base_url' => 'http://localhost:8080']];
+        $_GET = ['client_id' => 'cid', 'redirect_uri' => 'https://app.example/cb', 'state' => 's'];
+
+        ob_start();
+        (new LoginController())->chooser($config);
+        $html = (string) ob_get_clean();
+
+        $this->assertStringContainsString(
+            'href="/signup?client_id=cid&amp;redirect_uri=https%3A%2F%2Fapp.example%2Fcb&amp;state=s"',
+            $html
+        );
+        $this->assertStringContainsString('New here? Request access', $html);
+    }
+
     public function testChooserBuildsSubpathPrefixedHrefs(): void
     {
         $config = ['broker' => ['name' => 'GrandpaSSOn', 'base_url' => 'https://host/sso']];

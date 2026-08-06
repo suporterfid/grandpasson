@@ -271,6 +271,16 @@ final class EmailOtpLoginController
         echo '<input type="email" id="email" name="email" required autofocus autocomplete="email">';
         echo '<p><button type="submit" class="btn btn--primary">Send code</button></p>';
         echo '</form>';
+        $signupQuery = http_build_query(array_filter([
+            'client_id' => $clientId,
+            'redirect_uri' => $redirectUri,
+            'state' => $clientState,
+            'return_to' => $returnTo,
+            'code_challenge' => $codeChallenge,
+            'code_challenge_method' => $codeChallengeMethod,
+        ]));
+        $signupHref = Html::e(Html::basePath($config) . '/signup' . ($signupQuery !== '' ? '?' . $signupQuery : ''));
+        echo '<p class="text-small"><a href="' . $signupHref . '">New here? Request access</a></p>';
         echo '</div>';
         echo Html::pageEnd();
     }
