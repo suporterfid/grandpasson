@@ -4,4 +4,5 @@
 grandpasson-release.zip
 .phpunit.result.cache
 .phpunit.cache/
+/.worktrees/
 # Note: /vendor is intentionally NOT ignored — shared hosting ships a bundled vendor/
