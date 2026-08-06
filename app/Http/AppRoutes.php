@@ -10,6 +10,7 @@ use GrandpaSSOn\Http\Controllers\CallbackController;
 use GrandpaSSOn\Http\Controllers\EmailOtpLoginController;
 use GrandpaSSOn\Http\Controllers\HealthController;
 use GrandpaSSOn\Http\Controllers\JwksController;
+use GrandpaSSOn\Http\Controllers\LocaleController;
 use GrandpaSSOn\Http\Controllers\LoginController;
 use GrandpaSSOn\Http\Controllers\LogoutController;
 use GrandpaSSOn\Http\Controllers\OAuthIntrospectController;
@@ -61,6 +62,8 @@ final class AppRoutes
             ['POST', '/me/pats/{id}/revoke', UserPatController::class, 'revoke'],
             ['GET', '/me/active-tenant', ActiveTenantController::class, 'show'],
             ['POST', '/me/active-tenant', ActiveTenantController::class, 'set'],
+            ['GET', '/me/locale', LocaleController::class, 'show'],
+            ['POST', '/me/locale', LocaleController::class, 'set'],
             ['GET', '/site/{site_id}/login', SiteReaderController::class, 'chooser'],
             ['GET', '/site/{site_id}/login/{provider}', SiteReaderController::class, 'login'],
             ['GET', '/site/{site_id}/session', SiteReaderController::class, 'session'],
