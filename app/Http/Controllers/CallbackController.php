@@ -78,10 +78,7 @@ final class CallbackController
                 'nonce' => $oauth['nonce'] ?? null,
             ]);
 
-            $provisioner = new UserProvisioner($pdo, [
-                'app_env' => (string) $config['app_env'],
-                'allowed_email_domains' => $config['allowed_email_domains'] ?? [],
-            ]);
+            $provisioner = new UserProvisioner($pdo);
             $user = $provisioner->resolve($identity);
 
             session_regenerate_id(true);

@@ -34,10 +34,7 @@ final class TenantRepositoryTest extends TestCase
             }
             $this->pdo = $root;
             $this->tenants = new TenantRepository($this->pdo);
-            $this->users = new UserProvisioner($this->pdo, [
-                'app_env' => 'dev',
-                'allowed_email_domains' => [],
-            ]);
+            $this->users = new UserProvisioner($this->pdo);
         } catch (\Throwable $e) {
             $this->markTestSkipped('MySQL not available: ' . $e->getMessage());
         }
@@ -196,7 +193,7 @@ final class TenantRepositoryTest extends TestCase
             $admin->exec('USE `' . $dbName . '`');
             $migrator = new Migrator($admin, dirname(__DIR__, 2) . '/app/Infrastructure/Db/Migrations');
             $applied = $migrator->migrate();
-            $this->assertCount(21, $applied);
+            $this->assertCount(23, $applied);
             $this->assertContains('013_create_access_tokens.sql', $applied);
             $this->assertSame([], $migrator->migrate());
 
@@ -209,15 +206,21 @@ final class TenantRepositoryTest extends TestCase
         }
     }
 
+    /** Seeds an active user directly via SQL — UserProvisioner::resolve() no longer creates accounts. */
     private function provisionUser(string $email, string $subject): \GrandpaSSOn\Domain\User
     {
-        return $this->users->resolve(new NormalizedIdentity(
-            'google',
-            $subject,
-            $email,
-            true,
-            'Test User',
-        ));
+        $id = \GrandpaSSOn\Domain\Uuid::v4();
+        $now = gmdate('Y-m-d H:i:s');
+        $this->pdo->prepare(
+            'INSERT INTO users (id, primary_email, email_verified, display_name, avatar_url, status, created_at, updated_at)
+             VALUES (:id, :email, 1, :name, NULL, \'active\', :now, :now)'
+        )->execute(['id' => $id, 'email' => $email, 'name' => 'Test User', 'now' => $now]);
+        $this->pdo->prepare(
+            'INSERT INTO linked_identities (id, user_id, provider, provider_subject, provider_email, provider_username, raw_claims_json, linked_at, last_login_at)
+             VALUES (:lid, :uid, \'google\', :subject, :email, NULL, \'{}\', :now, :now)'
+        )->execute(['lid' => \GrandpaSSOn\Domain\Uuid::v4(), 'uid' => $id, 'subject' => $subject, 'email' => $email, 'now' => $now]);
+
+        return $this->users->resolve(new NormalizedIdentity('google', $subject, $email, true, 'Test User'));
     }
 
     private function rootPdo(): PDO
