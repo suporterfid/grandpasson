@@ -1,5 +1,14 @@
 /* GrandpaSSOn semantic visual identity. Components consume semantic tokens only. */
 
+/* Self-hosted Inter 4.1 variable roman; see assets/fonts/INTER-LICENSE.txt. */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("fonts/inter-4.1-variable.woff2") format("woff2");
+}
+
 :root,
 [data-theme='light'] {
   color-scheme: light;

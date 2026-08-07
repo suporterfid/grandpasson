@@ -60,6 +60,18 @@ final class ThemeCssTest extends TestCase
         }
     }
 
+    public function testSelectedUiFontIsLocallyDeclaredWithSwapAndRelativeUrl(): void
+    {
+        $css = (string) file_get_contents(self::PATH);
+
+        $this->assertMatchesRegularExpression('/--font-ui:\\s*Inter,/', $css, 'Inter must remain the selected UI family');
+        $this->assertMatchesRegularExpression(
+            '/@font-face\\s*\\{(?:(?!\\}).)*font-family:\\s*[\'\"]Inter[\'\"]\\s*;(?:(?!\\}).)*font-display:\\s*swap\\s*;(?:(?!\\}).)*src:\\s*url\\([\'\"]fonts\/inter-[^\'\"]+\\.woff2[\'\"]\\)\\s*format\\([\'\"]woff2[\'\"]\\)\\s*;(?:(?!\\}).)*\\}/s',
+            $css,
+            'The selected Inter UI family must have a self-hosted WOFF2 @font-face with font-display: swap'
+        );
+    }
+
     public function testHasNoImportOrExternalUrl(): void
     {
         $css = (string) file_get_contents(self::PATH);
