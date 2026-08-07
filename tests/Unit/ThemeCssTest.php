@@ -86,6 +86,33 @@ final class ThemeCssTest extends TestCase
         $this->assertStringContainsString('prefers-reduced-motion: reduce', $css);
     }
 
+    public function testFormControlsProvideTheRequired44PixelPointerTarget(): void
+    {
+        $css = (string) file_get_contents(self::PATH);
+
+        $this->assertMatchesRegularExpression(
+            '/input,\s*select,\s*textarea,\s*\.control\s*\{(?:(?!\}).)*min-block-size:\s*44px\s*;/s',
+            $css,
+            'Form controls need a 44px minimum block size so their pointer target remains usable.'
+        );
+    }
+
+    public function testProseShellUsesDirectionAwareSafeAreaGuttersAtMobileBreakpoints(): void
+    {
+        $css = (string) file_get_contents(self::PATH);
+
+        $this->assertMatchesRegularExpression(
+            '/\.prose\s*\{(?:(?!\}).)*padding-inline:\s*max\(16px,\s*var\(--safe-inline-start\)\)\s+max\(16px,\s*var\(--safe-inline-end\)\)\s*;/s',
+            $css,
+            'The rendered page shell must map asymmetric safe areas through logical inline gutters.'
+        );
+        $this->assertMatchesRegularExpression(
+            '/@media\s*\(min-width:\s*480px\)\s*\{(?:(?!@media).)*\.prose\s*\{(?:(?!\}).)*padding-inline:\s*max\(20px,\s*var\(--safe-inline-start\)\)\s+max\(20px,\s*var\(--safe-inline-end\)\)\s*;/s',
+            $css,
+            'The rendered page shell must increase its mobile gutter to 20px from 480px onward.'
+        );
+    }
+
     /** @return array<string, string> */
     private function parseThemeColorTokens(string $theme): array
     {
