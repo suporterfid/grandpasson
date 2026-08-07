@@ -34,6 +34,7 @@ final class LoginControllerChooserTest extends TestCase
         $this->assertStringContainsString('btn btn--secondary', $html);
         $this->assertStringContainsString('href="/login/email"', $html);
         $this->assertStringContainsString('Or continue with email', $html);
+        $this->assertSame(2, substr_count($html, 'class="action-link"'));
     }
 
     public function testChooserForwardsRpParamsOnEmailLink(): void

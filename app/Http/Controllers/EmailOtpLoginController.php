@@ -280,7 +280,7 @@ final class EmailOtpLoginController
             'code_challenge_method' => $codeChallengeMethod,
         ]));
         $signupHref = Html::e(Html::basePath($config) . '/signup' . ($signupQuery !== '' ? '?' . $signupQuery : ''));
-        echo '<p class="text-small"><a href="' . $signupHref . '">New here? Request access</a></p>';
+        echo '<p class="text-small"><a class="action-link" href="' . $signupHref . '">New here? Request access</a></p>';
         echo '</div>';
         echo Html::pageEnd();
     }
@@ -324,7 +324,7 @@ final class EmailOtpLoginController
         echo '<input type="text" id="code" name="code" required autofocus inputmode="numeric" autocomplete="one-time-code">';
         echo '<p><button type="submit" class="btn btn--primary">Verify</button></p>';
         echo '</form>';
-        echo '<p class="text-small"><a href="' . $restartHref . '">Request a new code</a></p>';
+        echo '<p class="text-small"><a class="action-link" href="' . $restartHref . '">Request a new code</a></p>';
         echo '</div>';
         echo Html::pageEnd();
     }

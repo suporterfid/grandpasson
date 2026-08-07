@@ -400,7 +400,7 @@ final class SignupController
         echo '<input type="text" id="code" name="code" required autofocus inputmode="numeric" autocomplete="one-time-code">';
         echo '<p><button type="submit" class="btn btn--primary">Verify</button></p>';
         echo '</form>';
-        echo '<p class="text-small"><a href="' . $restartHref . '">Start over</a></p>';
+        echo '<p class="text-small"><a class="action-link" href="' . $restartHref . '">Start over</a></p>';
         echo '</div>';
         echo Html::pageEnd();
     }

@@ -54,6 +54,62 @@ final class VisualIdentityTest extends TestCase
         }
     }
 
+    public function testActualInvalidControlBoundaryMeetsThreeToOneInBothThemes(): void
+    {
+        $invalidDeclarations = $this->declarationsForRule(
+            $this->themeCss(),
+            "input[aria-invalid='true'],\nselect[aria-invalid='true'],\ntextarea[aria-invalid='true']"
+        );
+        $controlDeclarations = $this->declarationsForRule(
+            $this->themeCss(),
+            "input,\nselect,\ntextarea,\n.control"
+        );
+
+        $this->assertMatchesRegularExpression(
+            '/^2px solid var\((--color-[a-z-]+)\)$/',
+            $invalidDeclarations['border'] ?? '',
+            'The invalid outline must resolve through a semantic color token.'
+        );
+        preg_match('/var\((--color-[a-z-]+)\)/', $invalidDeclarations['border'], $boundaryMatch);
+        preg_match('/var\((--color-[a-z-]+)\)/', $controlDeclarations['background'] ?? '', $backgroundMatch);
+        $this->assertArrayHasKey(1, $boundaryMatch);
+        $this->assertArrayHasKey(1, $backgroundMatch);
+
+        foreach (['light', 'dark'] as $theme) {
+            $tokens = $this->parseThemeColorTokens($theme);
+            $this->assertGreaterThanOrEqual(
+                3.0,
+                $this->contrast($tokens[$boundaryMatch[1]], $tokens[$backgroundMatch[1]]),
+                "{$theme}: actual invalid control boundary"
+            );
+        }
+    }
+
+    public function testStandaloneControllerActionAnchorsDeclareTheActionLinkClass(): void
+    {
+        $dir = dirname(__DIR__, 2) . '/app/Http/Controllers';
+        $offenders = [];
+
+        foreach (glob($dir . '/*.php') ?: [] as $file) {
+            foreach (file($file, FILE_IGNORE_NEW_LINES) ?: [] as $lineNumber => $line) {
+                if (preg_match('/echo\s+\'<p[^>]*><a\s+(?<attributes>[^>]*)>/', $line, $match) !== 1
+                    || str_contains($match['attributes'], 'btn')
+                ) {
+                    continue;
+                }
+                if (!str_contains($match['attributes'], 'class="action-link"')) {
+                    $offenders[] = basename($file) . ':' . ($lineNumber + 1);
+                }
+            }
+        }
+
+        $this->assertSame(
+            [],
+            $offenders,
+            'Standalone controller actions must opt into the 44px action-link target: ' . implode(', ', $offenders)
+        );
+    }
+
     public function testThemeCssHasNoImportOrExternalUrl(): void
     {
         $css = $this->themeCss();
@@ -93,6 +149,32 @@ final class VisualIdentityTest extends TestCase
     private function themeCss(): string
     {
         return (string) file_get_contents(self::THEME_CSS_PATH);
+    }
+
+    /** @return array<string, string> */
+    private function declarationsForRule(string $css, string $selector): array
+    {
+        $pattern = '/' . preg_quote($this->normalizeWhitespace($selector), '/') . '\\s*\\{/';
+        $normalizedCss = $this->normalizeWhitespace($css);
+        $this->assertMatchesRegularExpression($pattern, $normalizedCss, "Missing {$selector} rule");
+        preg_match($pattern, $normalizedCss, $match, PREG_OFFSET_CAPTURE);
+        $openingBrace = $match[0][1] + strlen($match[0][0]) - 1;
+        $closingBrace = strpos($normalizedCss, '}', $openingBrace);
+        $this->assertNotFalse($closingBrace, "Unclosed {$selector} rule");
+        $block = substr($normalizedCss, $openingBrace + 1, $closingBrace - $openingBrace - 1);
+        preg_match_all('/(?<property>--[a-z0-9-]+|[a-z-]+)\s*:\s*(?<value>[^;{}]+);/i', $block, $matches, PREG_SET_ORDER);
+
+        $declarations = [];
+        foreach ($matches as $declaration) {
+            $declarations[$declaration['property']] = trim($declaration['value']);
+        }
+
+        return $declarations;
+    }
+
+    private function normalizeWhitespace(string $value): string
+    {
+        return trim((string) preg_replace('/\\s+/', ' ', $value));
     }
 
     /** @return array<string, string> */

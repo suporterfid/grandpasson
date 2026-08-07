@@ -135,6 +135,7 @@ final class EmailOtpLoginControllerTest extends TestCase
 
         $this->assertStringContainsString('/signup?client_id=cid&amp;redirect_uri=', $body);
         $this->assertStringContainsString('New here? Request access', $body);
+        $this->assertStringContainsString('class="action-link"', $body);
     }
 
     public function testFormRendersEmailInputWithHiddenRpParams(): void

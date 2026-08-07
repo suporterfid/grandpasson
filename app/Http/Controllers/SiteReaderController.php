@@ -234,7 +234,7 @@ final class SiteReaderController
             echo '<p>Site <code>' . Html::e($siteId) . '</code></p>';
             echo '<div class="card card--emphasis"><p><strong>Scope:</strong> <code>publish:read</code> only — this is not an editor session.</p></div>';
             $sessionHref = Html::e(Html::basePath($config) . '/site/' . rawurlencode($siteId) . '/session');
-            echo '<p><a href="' . $sessionHref . '">Check session</a></p>';
+            echo '<p><a class="action-link" href="' . $sessionHref . '">Check session</a></p>';
             echo '</div>';
             echo Html::pageEnd();
         } catch (\Throwable $e) {

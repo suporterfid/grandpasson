@@ -240,6 +240,13 @@ a:focus-visible,
   text-decoration-thickness: 2px;
 }
 
+.action-link {
+  display: inline-flex;
+  align-items: center;
+  min-inline-size: 44px;
+  min-block-size: 44px;
+}
+
 code,
 pre {
   border: 1px solid var(--color-border-default);
@@ -310,7 +317,7 @@ textarea:disabled,
 input[aria-invalid='true'],
 select[aria-invalid='true'],
 textarea[aria-invalid='true'] {
-  border: 2px solid var(--color-danger-border);
+  border: 2px solid var(--color-border-strong);
 }
 
 .btn,
@@ -404,11 +411,11 @@ textarea:focus-visible {
 }
 
 .theme-switcher {
-  position: fixed;
-  z-index: 10;
-  inset-inline-end: max(var(--space-4), var(--safe-inline-end));
-  inset-block-end: max(var(--space-4), env(safe-area-inset-bottom));
+  position: static;
+  inline-size: fit-content;
   max-inline-size: calc(100% - var(--space-7));
+  margin-block: var(--space-4) max(var(--space-4), env(safe-area-inset-bottom));
+  margin-inline: auto max(var(--space-4), var(--safe-inline-end));
   padding: var(--space-1);
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-md);
@@ -459,6 +466,14 @@ textarea:focus-visible {
 
   .app-shell {
     padding-inline: max(20px, var(--safe-inline-start)) max(20px, var(--safe-inline-end));
+  }
+
+  .theme-switcher {
+    position: fixed;
+    z-index: 10;
+    inset-inline-end: max(var(--space-4), var(--safe-inline-end));
+    inset-block-end: max(var(--space-4), env(safe-area-inset-bottom));
+    margin: 0;
   }
 }
 

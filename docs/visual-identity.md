@@ -214,7 +214,7 @@ ligatures.
 | Layer | Active z-index | Deployed use |
 |---|---:|---|
 | Normal document flow | `auto` | Page content and cards |
-| Fixed theme switcher | `10` | `.theme-switcher` |
+| Wide fixed theme switcher | `10` | `.theme-switcher` from `480px` |
 | Other overlay layers | Not currently declared | Future menus, dialogs, toasts, and sidebars must reserve canonical layers without reusing `10` |
 
 | Icon role | Required size |
@@ -270,8 +270,8 @@ per-character wrappers.
 
 | Viewport | Active measure and behavior |
 |---|---|
-| `<480px` | `.prose` has `720px` max inline size, `max(16px, safe-inline-start/end)` gutters, and `max(48px, top/bottom safe area)` block padding. The fixed switcher anchors 16px-or-safe-area from inline end and block end. |
-| `480–767px` | `.prose` increases only its logical inline gutters to `max(20px, safe-inline-start/end)`; its block safe-area padding remains in force. |
+| `<480px` | `.prose` has `720px` max inline size, `max(16px, safe-inline-start/end)` gutters, and `max(48px, top/bottom safe area)` block padding. The switcher follows page content in normal flow with logical-end and bottom safe-area margins, so long labels cannot cover a final control. |
+| `480–767px` | `.prose` increases only its logical inline gutters to `max(20px, safe-inline-start/end)`; its block safe-area padding remains in force. The switcher resumes its fixed logical corner position. |
 | `768–1023px` | `.data-table-region` may own horizontal scrolling; it must be labeled, keyboard-operable, and visibly scrollable. |
 | `1024–1279px` | The forward-compatible `.app-shell` uses `max(24px, safe-inline-start/end)` inline padding. GrandpaSSOn currently has no persistent sidebar or top bar. |
 | `≥1280px` | `.data-view` may reach `1200px` max inline size; reading content remains `720px`. |
@@ -279,8 +279,9 @@ per-character wrappers.
 The current page wrapper is `.prose`: it has a 720px reading measure,
 16px-plus-safe-area mobile gutters, 20px-plus-safe-area gutters from 480px,
 and 48px-plus-safe-area top and bottom padding. It uses block/inline padding
-so direction is structural, not visual. The fixed theme switcher uses the
-same logical inline-end variable and the bottom safe area.
+so direction is structural, not visual. Below 480px the theme switcher is in
+normal flow after page content; from 480px it uses the same logical inline-end
+variable and bottom safe area in a fixed position.
 `.data-view` permits a 1200px measure at 1280px; `.data-table-region` may
 scroll horizontally from 768px only when it is a labeled, keyboard-operable
 data region with a visible affordance. `pre` is the equivalent code region.
@@ -289,9 +290,10 @@ wrap without page-wide horizontal scrolling, clipping, overlap, or lost
 keyboard reachability. The same is required for 200% text resizing and is
 checked again at 200% browser zoom.
 
-Controls are compact visually but pointer-operable buttons and form controls
-have a 44px minimum block target; buttons also have a 44px minimum inline
-target. Focus uses a 2px semantic focus ring with 2px offset. Reduced-motion
+Controls are compact visually but pointer-operable buttons, standalone
+`.action-link` anchors, and form controls have a 44px minimum block target;
+buttons and standalone action links also have a 44px minimum inline target.
+Focus uses a 2px semantic focus ring with 2px offset. Reduced-motion
 mode reduces animation and transition duration to 1ms and restores automatic
 scrolling. In forced-colours mode, controls retain native colour adjustment
 and cards/buttons remove shadows, so state must also have text, shape, or
@@ -307,8 +309,9 @@ focus cues.
 | `.action-list` | Wrapping-safe vertical action stack; child actions fill the available line |
 | `input`, `select`, `textarea`, `.control` | Label-above form control, strong boundary, 44px target, invalid outline |
 | `a`, `.link` | Semantic link colour and persistent underline |
+| `.action-link` | Standalone underlined action with a 44x44 minimum target; never applied globally to inline prose links |
 | `code`, `pre` | Code stack, surface boundary; `pre` is the horizontal-scroll exception |
-| `.theme-switcher` | Fixed, logical-end theme radiogroup with selected state |
+| `.theme-switcher` | In-flow below 480px; fixed logical-end theme radiogroup from 480px; selected state in both modes |
 | `.app-shell`, `.data-table-region`, `.data-view` | Forward-compatible application-shell and data-layout utilities |
 
 The present product is page-oriented authentication and admin UI: it has no

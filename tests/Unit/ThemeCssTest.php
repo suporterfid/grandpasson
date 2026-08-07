@@ -130,6 +130,29 @@ final class ThemeCssTest extends TestCase
         $this->assertSame('44px', $declarations['min-block-size'] ?? null);
     }
 
+    public function testStandaloneActionLinksHaveA44By44MinimumTarget(): void
+    {
+        $declarations = $this->declarationsForRule($this->themeCss(), '.action-link');
+
+        $this->assertSame('inline-flex', $declarations['display'] ?? null);
+        $this->assertSame('44px', $declarations['min-inline-size'] ?? null);
+        $this->assertSame('44px', $declarations['min-block-size'] ?? null);
+    }
+
+    public function testInvalidControlsUseTheStrongSemanticBoundary(): void
+    {
+        $declarations = $this->declarationsForRule(
+            $this->themeCss(),
+            "input[aria-invalid='true'],\nselect[aria-invalid='true'],\ntextarea[aria-invalid='true']"
+        );
+
+        $this->assertSame(
+            '2px solid var(--color-border-strong)',
+            $declarations['border'] ?? null,
+            'The essential invalid outline must use the canonical 3:1 control boundary.'
+        );
+    }
+
     public function testRtlSwapsTheExactPhysicalSafeAreaSources(): void
     {
         $declarations = $this->declarationsForRule($this->themeCss(), "[dir='rtl']");
@@ -138,13 +161,29 @@ final class ThemeCssTest extends TestCase
         $this->assertSame('env(safe-area-inset-left)', $declarations['--safe-inline-end'] ?? null);
     }
 
-    public function testThemeSwitcherRespectsFixedSafeAreaInsets(): void
+    public function testThemeSwitcherParticipatesInNarrowFlowAndIsFixedOnlyAtTheWiderBreakpoint(): void
     {
-        $declarations = $this->declarationsForRule($this->themeCss(), '.theme-switcher');
+        $narrowDeclarations = $this->declarationsForRule($this->themeCss(), '.theme-switcher');
 
-        $this->assertSame('fixed', $declarations['position'] ?? null);
-        $this->assertSame('max(var(--space-4), var(--safe-inline-end))', $declarations['inset-inline-end'] ?? null);
-        $this->assertSame('max(var(--space-4), env(safe-area-inset-bottom))', $declarations['inset-block-end'] ?? null);
+        $this->assertSame('static', $narrowDeclarations['position'] ?? null);
+        $this->assertSame('fit-content', $narrowDeclarations['inline-size'] ?? null);
+        $this->assertSame(
+            'var(--space-4) max(var(--space-4), env(safe-area-inset-bottom))',
+            $narrowDeclarations['margin-block'] ?? null
+        );
+        $this->assertSame(
+            'auto max(var(--space-4), var(--safe-inline-end))',
+            $narrowDeclarations['margin-inline'] ?? null
+        );
+
+        $wideDeclarations = $this->declarationsForRule(
+            $this->atRuleBlock($this->themeCss(), '@media (min-width: 480px)'),
+            '.theme-switcher'
+        );
+
+        $this->assertSame('fixed', $wideDeclarations['position'] ?? null);
+        $this->assertSame('max(var(--space-4), var(--safe-inline-end))', $wideDeclarations['inset-inline-end'] ?? null);
+        $this->assertSame('max(var(--space-4), env(safe-area-inset-bottom))', $wideDeclarations['inset-block-end'] ?? null);
     }
 
     public function testReducedMotionOverridesAnimationAndScrollingInItsMediaContract(): void
