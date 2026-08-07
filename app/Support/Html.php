@@ -50,15 +50,16 @@ final class Html
         . "frame-ancestors 'none'; base-uri 'none'; object-src 'none'";
 
     /**
-     * Emits doctype through <body> open, including the theme stylesheet
-     * link and the Content-Security-Policy header (VI10, #97). Callers
-     * must close with pageEnd().
+     * Emits doctype through <body> open, including the no-flash theme
+     * runtime, stylesheet link, and the Content-Security-Policy header
+     * (VI10, #97). Callers must close with pageEnd().
      */
     public static function pageStart(array $config, string $title, string $bodyClass = ''): string
     {
         header('Content-Security-Policy: ' . self::CSP);
 
         $themeHref = self::e(self::asset($config, 'theme.css'));
+        $themeScriptSrc = self::e(self::asset($config, 'theme.js'));
         $faviconHref = self::e(self::asset($config, 'favicon.svg'));
         $safeTitle = self::e($title);
         $classAttr = $bodyClass !== '' ? ' class="' . self::e($bodyClass) . '"' : '';
@@ -71,6 +72,8 @@ final class Html
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>{$safeTitle}</title>
         <link rel="icon" href="{$faviconHref}" type="image/svg+xml">
+        <meta name="theme-color" content="#FFFFFF">
+        <script src="{$themeScriptSrc}"></script>
         <link rel="stylesheet" href="{$themeHref}">
         </head>
         <body{$classAttr}>
@@ -79,7 +82,7 @@ final class Html
 
     public static function pageEnd(): string
     {
-        return '</body></html>';
+        return '<div class="theme-switcher" data-theme-switcher></div></body></html>';
     }
 
     /** htmlspecialchars with ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'. */

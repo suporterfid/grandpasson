@@ -57,7 +57,7 @@ final class HtmlTest extends TestCase
         $this->assertSame('/sso/assets/fonts/open-sans-400.woff2', Html::asset($config, '/fonts/open-sans-400.woff2'));
     }
 
-    public function testPageStartEmitsLangViewportCharsetTitleAndThemeLink(): void
+    public function testPageStartEmitsThemeRuntimeBeforeStylesheetWithBasePathUrls(): void
     {
         $config = ['broker' => ['base_url' => 'https://host/sso']];
         $html = Html::pageStart($config, 'GrandpaSSOn Login');
@@ -66,7 +66,13 @@ final class HtmlTest extends TestCase
         $this->assertStringContainsString('<meta name="viewport" content="width=device-width, initial-scale=1">', $html);
         $this->assertStringContainsString('<meta charset="utf-8">', $html);
         $this->assertStringContainsString('<title>GrandpaSSOn Login</title>', $html);
+        $this->assertStringContainsString('<meta name="theme-color" content="#FFFFFF">', $html);
+        $this->assertStringContainsString('<script src="/sso/assets/theme.js"></script>', $html);
         $this->assertStringContainsString('href="/sso/assets/theme.css"', $html);
+        $this->assertLessThan(
+            strpos($html, 'href="/sso/assets/theme.css"'),
+            strpos($html, 'src="/sso/assets/theme.js"')
+        );
         $this->assertStringContainsString('<body>', $html);
     }
 
@@ -82,7 +88,7 @@ final class HtmlTest extends TestCase
 
     public function testPageEnd(): void
     {
-        $this->assertSame('</body></html>', Html::pageEnd());
+        $this->assertSame('<div class="theme-switcher" data-theme-switcher></div></body></html>', Html::pageEnd());
     }
 
     public function testContentSecurityPolicyHasNoInlineOrUnsafeSources(): void

@@ -402,6 +402,55 @@ textarea:focus-visible {
   padding-block: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-bottom));
 }
 
+.theme-switcher {
+  position: fixed;
+  z-index: 10;
+  inset-inline-end: var(--space-4);
+  inset-block-end: var(--space-4);
+  max-inline-size: calc(100% - var(--space-7));
+  padding: var(--space-1);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+  box-shadow: var(--shadow-2);
+}
+
+.theme-switcher__group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.theme-switcher__option {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-block-size: 44px;
+  margin: 0;
+  padding-inline: var(--space-2);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.theme-switcher__option:hover {
+  background: var(--color-bg-hover);
+}
+
+.theme-switcher__input {
+  inline-size: 1rem;
+  min-block-size: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  accent-color: var(--color-action-primary);
+}
+
+.theme-switcher__option:has(.theme-switcher__input:checked) {
+  background: var(--color-bg-selected);
+  font-weight: 600;
+}
+
 @media (min-width: 480px) {
   .app-shell {
     padding-inline: max(20px, var(--safe-inline-start)) max(20px, var(--safe-inline-end));
