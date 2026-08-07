@@ -12,7 +12,7 @@
       dark: 'Dark',
       system: 'System'
     },
-    'pt-BR': {
+    'pt-br': {
       theme: 'Tema',
       light: 'Claro',
       dark: 'Escuro',
@@ -49,7 +49,9 @@
   }
 
   function labelsForDocument() {
-    return messages[document.documentElement.lang] || messages.en;
+    var language = document.documentElement.lang.toLowerCase();
+
+    return messages[language] || messages.en;
   }
 
   function enhanceSwitcher() {
