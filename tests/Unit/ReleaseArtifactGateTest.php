@@ -25,6 +25,14 @@ final class ReleaseArtifactGateTest extends TestCase
         $this->assertStringNotContainsString("\$router->post('/oauth/token'", $index);
     }
 
+    public function testDockerBuildScriptHasLfPortableShebang(): void
+    {
+        $script = (string) file_get_contents(dirname(__DIR__, 2) . '/docker/build/build.sh');
+
+        $this->assertStringNotContainsString("\r", $script, 'Docker executes the script in Linux and cannot run CRLF shebangs.');
+        $this->assertStringStartsWith("#!/bin/sh\n", $script);
+    }
+
     public function testReleaseZipCleanWhenPresent(): void
     {
         if (!class_exists(\ZipArchive::class)) {
