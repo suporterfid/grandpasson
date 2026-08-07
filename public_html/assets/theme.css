@@ -1,105 +1,143 @@
-/*
- * GrandpaSSOn visual identity — semantic design tokens (VI2, #89).
- * See docs/visual-identity.md for the full spec and the GrandpaSSOn
- * appendix (status color contrast ratios, deviation log).
- *
- * Consume the custom properties below; do not hardcode palette hex
- * values in component code (spec §2). Raw hex in this file is confined
- * to the palette block and the status-token block.
- */
+/* GrandpaSSOn semantic visual identity. Components consume semantic tokens only. */
 
-/*
- * Self-hosted Open Sans (VI4, #91) — Latin + Latin-Extended subset, WOFF2
- * only. Relative url()s so they resolve under both root and subpath
- * installs with no PHP involvement. See public_html/assets/fonts/LICENSE.txt
- * (SIL OFL 1.1) and docs/visual-identity.md for source/version/subset notes.
- */
-@font-face {
-  font-family: "Open Sans";
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url("fonts/open-sans-400.woff2") format("woff2");
+:root,
+[data-theme='light'] {
+  color-scheme: light;
+  --color-bg-canvas: #FFFFFF;
+  --color-bg-surface: #F7F6F3;
+  --color-bg-elevated: #FFFFFF;
+  --color-bg-hover: #EFEDEA;
+  --color-bg-selected: #E7F0FA;
+  --color-text-primary: #252525;
+  --color-text-secondary: #5F5F5F;
+  --color-text-disabled: #929292;
+  --color-text-inverse: #FFFFFF;
+  --color-text-link: #0F5EAB;
+  --color-border-default: #D9D7D3;
+  --color-border-strong: #8A8882;
+  --color-action-primary: #1A6DC1;
+  --color-action-primary-hover: #14599E;
+  --color-action-primary-active: #104B86;
+  --color-action-primary-content: #FFFFFF;
+  --color-action-primary-subtle: #E7F0FA;
+  --color-focus-ring: #1A6DC1;
+  --color-success-fg: #126B3A;
+  --color-success-bg: #F1FAF4;
+  --color-success-border: #7CCB98;
+  --color-warning-fg: #7A4A00;
+  --color-warning-bg: #FFF7E6;
+  --color-warning-border: #F0B35A;
+  --color-danger-fg: #B42318;
+  --color-danger-bg: #FFF1F0;
+  --color-danger-border: #F29A93;
+  --color-info-fg: #0F5EAB;
+  --color-info-bg: #EDF5FE;
+  --color-info-border: #85BCEB;
+
+  --color-canvas: var(--color-bg-canvas);
+  --color-surface: var(--color-bg-surface);
+  --color-surface-emphasis: var(--color-bg-elevated);
+  --color-text: var(--color-text-primary);
+  --color-text-muted: var(--color-text-secondary);
+  --color-border: var(--color-border-default);
+  --color-action: var(--color-action-primary);
+  --color-action-hover: var(--color-action-primary-hover);
+  --color-focus: var(--color-focus-ring);
+  --color-danger: var(--color-danger-fg);
+  --color-warning: var(--color-warning-fg);
+  --color-success: var(--color-success-fg);
 }
 
-@font-face {
-  font-family: "Open Sans";
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  src: url("fonts/open-sans-500.woff2") format("woff2");
-}
+[data-theme='dark'] {
+  color-scheme: dark;
+  --color-bg-canvas: #191919;
+  --color-bg-surface: #202020;
+  --color-bg-elevated: #252525;
+  --color-bg-hover: #2C2C2C;
+  --color-bg-selected: #123B60;
+  --color-text-primary: #F1F1EF;
+  --color-text-secondary: #C6C6C2;
+  --color-text-disabled: #888884;
+  --color-text-inverse: #191919;
+  --color-text-link: #79B8E8;
+  --color-border-default: #4A4A4A;
+  --color-border-strong: #6E6E6E;
+  --color-action-primary: #529CCA;
+  --color-action-primary-hover: #70B4DE;
+  --color-action-primary-active: #3E83B5;
+  --color-action-primary-content: #111111;
+  --color-action-primary-subtle: #173755;
+  --color-focus-ring: #79B8E8;
+  --color-success-fg: #7CDA9A;
+  --color-success-bg: #13291C;
+  --color-success-border: #34794C;
+  --color-warning-fg: #F5C775;
+  --color-warning-bg: #33250D;
+  --color-warning-border: #8D6418;
+  --color-danger-fg: #F4A49E;
+  --color-danger-bg: #381B1B;
+  --color-danger-border: #8E4540;
+  --color-info-fg: #9DCCF2;
+  --color-info-bg: #102B45;
+  --color-info-border: #3D78AA;
 
-@font-face {
-  font-family: "Open Sans";
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url("fonts/open-sans-600.woff2") format("woff2");
-}
-
-@font-face {
-  font-family: "Open Sans";
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url("fonts/open-sans-700.woff2") format("woff2");
+  --color-canvas: var(--color-bg-canvas);
+  --color-surface: var(--color-bg-surface);
+  --color-surface-emphasis: var(--color-bg-elevated);
+  --color-text: var(--color-text-primary);
+  --color-text-muted: var(--color-text-secondary);
+  --color-border: var(--color-border-default);
+  --color-action: var(--color-action-primary);
+  --color-action-hover: var(--color-action-primary-hover);
+  --color-focus: var(--color-focus-ring);
+  --color-danger: var(--color-danger-fg);
+  --color-warning: var(--color-warning-fg);
+  --color-success: var(--color-success-fg);
 }
 
 :root {
-  color-scheme: dark;
-
-  /* Palette (raw hex lives here only) */
-  --color-canvas: #000000;
-  --color-surface: #1a0a3e;
-  --color-surface-emphasis: #1b0f46;
-  --color-text: #ebebeb;
-  --color-text-muted: #b0b0b0;
-  --color-text-inverse: #ffffff;
-  --color-border: #33235c;
-  --color-border-strong: #4e3a85;
-  --color-action: #814dde;
-  --color-action-hover: #9565e8;
-  --color-focus: #814dde;
-
-  /* Status tokens — verified against both canvas and surface, see docs/visual-identity.md */
-  --color-danger: #ff6b6b;
-  --color-warning: #f5a623;
-  --color-success: #3ddc97;
-
-  /* Typography */
-  --font-sans:
-    "Open Sans",
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    Roboto,
-    Helvetica,
-    Arial,
-    sans-serif;
-  --font-mono: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-
-  --text-display: clamp(2rem, 1.6rem + 2vw, 3.2rem);
-  --text-h2: clamp(1.5rem, 1.3rem + 1vw, 2rem);
-  --text-h3: 1.25rem;
-  --text-lead: 1.2rem;
-  --text-body: 1rem;
-  --text-small: 0.85rem;
-
-  /* Spacing (8px base scale) */
+  --font-ui: Inter, "Noto Sans", "Noto Sans Arabic", "Noto Sans Hebrew", "Noto Sans SC", "Noto Sans TC", "Noto Sans JP", "Noto Sans KR", "Noto Sans Thai", "Noto Sans Devanagari", Arial, sans-serif;
+  --font-editorial: "Source Serif 4", "Noto Serif", "Noto Naskh Arabic", "Noto Serif Hebrew", "Noto Serif SC", "Noto Serif TC", "Noto Serif JP", "Noto Serif KR", Georgia, serif;
+  --font-code: "IBM Plex Mono", "Noto Sans Mono", "Noto Sans SC", "Noto Sans TC", "Noto Sans JP", "Noto Sans KR", monospace;
+  --font-sans: var(--font-ui);
+  --font-mono: var(--font-code);
+  --text-caption: 12px;
+  --text-ui: 14px;
+  --text-body: 16px;
+  --text-section: 20px;
+  --text-subheading: 24px;
+  --text-title: 32px;
+  --text-display: 44px;
+  --space-0: 0;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
-  --space-5: 24px;
-  --space-6: 32px;
-  --space-7: 48px;
-  --space-8: 64px;
-
-  /* Radius */
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+  --space-9: 48px;
+  --space-10: 64px;
+  --radius-inline: 2px;
   --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 16px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-pill: 999px;
+  --shadow-0: none;
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.08);
+  --shadow-2: 0 4px 12px rgb(0 0 0 / 0.14);
+  --shadow-3: 0 12px 28px rgb(0 0 0 / 0.18);
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --duration-feedback: 120ms;
+  --duration-control: 180ms;
+  --safe-inline-start: env(safe-area-inset-left);
+  --safe-inline-end: env(safe-area-inset-right);
+}
+
+[dir='rtl'] {
+  --safe-inline-start: env(safe-area-inset-right);
+  --safe-inline-end: env(safe-area-inset-left);
 }
 
 *,
@@ -109,89 +147,96 @@
 }
 
 html {
-  height: 100%;
+  min-block-size: 100%;
+  background: var(--color-bg-canvas);
 }
 
 body {
-  min-height: 100%;
+  min-block-size: 100%;
   margin: 0;
-  background: var(--color-canvas);
-  color: var(--color-text);
-  font-family: var(--font-sans);
+  background: var(--color-bg-canvas);
+  color: var(--color-text-primary);
+  font-family: var(--font-ui);
   font-size: var(--text-body);
   font-weight: 400;
-  line-height: 1.5;
+  line-height: 24px;
+  font-synthesis: none;
+  overflow-wrap: anywhere;
   -webkit-font-smoothing: antialiased;
-  /* overflow-wrap is inherited; without it a long unbroken value (e.g. a
-     BROKER_NAME or site_id with no spaces) overflows the viewport instead
-     of wrapping (spec §10 "test with longer translated strings"). */
-  overflow-wrap: break-word;
 }
 
 h1,
 h2,
 h3 {
-  font-family: var(--font-sans);
-  font-weight: 700;
-  line-height: 1.2;
-  margin: 0 0 var(--space-3);
+  margin-block: 0 var(--space-3);
+  color: var(--color-text-primary);
+  font-family: var(--font-ui);
 }
 
 h1 {
   font-size: var(--text-display);
+  font-weight: 700;
+  line-height: 52px;
 }
 
 h2 {
-  font-size: var(--text-h2);
+  font-size: var(--text-title);
+  font-weight: 700;
+  line-height: 40px;
 }
 
 h3 {
-  font-size: var(--text-h3);
+  font-size: var(--text-section);
   font-weight: 600;
+  line-height: 28px;
 }
 
 p {
-  margin: 0 0 var(--space-4);
+  margin-block: 0 var(--space-4);
 }
 
 p.lead {
-  font-size: var(--text-lead);
-  font-weight: 400;
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
+  font-size: var(--text-subheading);
+  font-weight: 600;
+  line-height: 32px;
 }
 
 small,
 .text-small {
-  font-size: var(--text-small);
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
+  line-height: 16px;
 }
 
-/* Reading column (spec §5) */
 .prose {
-  max-width: 720px;
-  margin: 0 auto;
-  padding: var(--space-7) var(--space-4);
+  max-inline-size: 720px;
+  margin-inline: auto;
+  padding: var(--space-9) var(--space-4);
 }
 
-/* Links (spec §7 "Links") */
-a {
-  color: var(--color-text);
-  text-decoration: underline;
-  text-underline-offset: 0.15em;
+a,
+.link {
+  color: var(--color-text-link);
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
 }
 
 a:hover,
-a:focus-visible {
-  color: var(--color-action-hover);
+a:focus-visible,
+.link:hover,
+.link:focus-visible {
+  text-decoration-thickness: 2px;
 }
 
-/* Code (spec §7 "Code") */
 code,
 pre {
-  font-family: var(--font-mono);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-inline);
+  background: var(--color-bg-surface);
+  font-family: var(--font-code);
+  font-variant-ligatures: none;
 }
 
 code {
@@ -205,125 +250,194 @@ pre {
 }
 
 pre code {
-  padding: 0;
   border: 0;
   background: transparent;
+  padding: 0;
 }
 
-/* Forms (spec §7 "Forms") */
 label {
   display: block;
-  font-size: var(--text-small);
+  margin-block: var(--space-4) var(--space-1);
+  color: var(--color-text-primary);
+  font-size: var(--text-ui);
   font-weight: 500;
-  margin: var(--space-4) 0 var(--space-1);
+  line-height: 20px;
 }
 
 input,
 select,
-textarea {
-  width: 100%;
-  box-sizing: border-box;
-  padding: var(--space-2) var(--space-3);
-  font-family: var(--font-sans);
-  font-size: var(--text-body);
-  color: var(--color-text);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+textarea,
+.control {
+  inline-size: 100%;
+  min-block-size: 40px;
+  padding-block: var(--space-2);
+  padding-inline: var(--space-3);
+  border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+  font: inherit;
+  line-height: 20px;
+  transition: background-color var(--duration-feedback) var(--ease-standard), border-color var(--duration-feedback) var(--ease-standard);
 }
 
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible {
-  outline: 3px solid var(--color-focus);
-  outline-offset: 1px;
+input:hover,
+select:hover,
+textarea:hover,
+.control:hover {
+  background: var(--color-bg-hover);
 }
 
-/* Buttons (spec §7 "Buttons") */
-.btn {
+input:disabled,
+select:disabled,
+textarea:disabled,
+.btn:disabled,
+.button:disabled {
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+input[aria-invalid='true'],
+select[aria-invalid='true'],
+textarea[aria-invalid='true'] {
+  border: 2px solid var(--color-danger-border);
+}
+
+.btn,
+.button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  min-height: 44px;
-  padding: var(--space-3) var(--space-5);
-  border-radius: var(--radius-md);
-  font-family: var(--font-sans);
-  font-size: var(--text-body);
+  min-inline-size: 44px;
+  min-block-size: 44px;
+  padding-block: var(--space-2);
+  padding-inline: var(--space-4);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+  font-family: var(--font-ui);
+  font-size: var(--text-ui);
   font-weight: 600;
+  line-height: 20px;
+  text-align: center;
   text-decoration: none;
   cursor: pointer;
-  border: 1px solid transparent;
-  transition:
-    background-color 0.15s ease,
-    border-color 0.15s ease,
-    color 0.15s ease;
+  transition: background-color var(--duration-control) var(--ease-standard), border-color var(--duration-control) var(--ease-standard), color var(--duration-feedback) var(--ease-standard);
 }
 
-.btn--primary {
-  background: var(--color-action);
-  color: var(--color-text-inverse);
+.btn--primary,
+.button--primary {
+  background: var(--color-action-primary);
+  color: var(--color-action-primary-content);
 }
 
 .btn--primary:hover,
-.btn--primary:focus-visible {
-  background: var(--color-action-hover);
+.button--primary:hover {
+  background: var(--color-action-primary-hover);
 }
 
-.btn--secondary {
-  background: transparent;
-  color: var(--color-text);
+.btn--primary:active,
+.button--primary:active {
+  background: var(--color-action-primary-active);
+}
+
+.btn--secondary,
+.button--secondary {
   border-color: var(--color-border-strong);
 }
 
 .btn--secondary:hover,
-.btn--secondary:focus-visible {
-  border-color: var(--color-action-hover);
-  color: var(--color-action-hover);
+.button--secondary:hover {
+  background: var(--color-bg-hover);
 }
 
-/* Cards and panels (spec §7 "Cards and panels") */
 .card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
   padding: var(--space-6);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  box-shadow: var(--shadow-1);
 }
 
 .card--emphasis {
-  background: var(--color-surface-emphasis);
   border-color: var(--color-border-strong);
+  background: var(--color-bg-elevated);
 }
 
-/* Stacked action lists (e.g. provider chooser) — semantic <ul>/<li> per spec §10,
-   markers removed via CSS rather than dropping the list semantics. */
 .action-list {
-  list-style: none;
-  margin: var(--space-6) 0 0;
-  padding: 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  margin-block: var(--space-6) 0;
+  padding: 0;
+  list-style: none;
 }
 
 .action-list .btn {
-  width: 100%;
+  inline-size: 100%;
 }
 
-/* Focus visibility (spec §10) — one global rule; components should not override it */
-:focus-visible {
-  outline: 3px solid var(--color-focus);
+:focus-visible,
+.control:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
   outline-offset: 2px;
 }
 
-/* Motion (spec §9) */
+.app-shell {
+  padding-inline: max(16px, var(--safe-inline-start)) max(16px, var(--safe-inline-end));
+  padding-block: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-bottom));
+}
+
+@media (min-width: 480px) {
+  .app-shell {
+    padding-inline: max(20px, var(--safe-inline-start)) max(20px, var(--safe-inline-end));
+  }
+}
+
+@media (min-width: 768px) {
+  .data-table-region {
+    overflow-x: auto;
+  }
+}
+
+@media (min-width: 1024px) {
+  .app-shell {
+    padding-inline: max(24px, var(--safe-inline-start)) max(24px, var(--safe-inline-end));
+  }
+}
+
+@media (min-width: 1280px) {
+  .data-view {
+    max-inline-size: 1200px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
-    animation-duration: 0.01ms !important;
+    animation-duration: 1ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+@media (forced-colors: active) {
+  *,
+  *::before,
+  *::after {
+    forced-color-adjust: auto;
+  }
+
+  .card,
+  .btn,
+  .button {
+    box-shadow: none;
   }
 }
