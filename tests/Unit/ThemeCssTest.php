@@ -74,43 +74,159 @@ final class ThemeCssTest extends TestCase
 
     public function testHasNoImportOrExternalUrl(): void
     {
-        $css = (string) file_get_contents(self::PATH);
+        $css = $this->themeCss();
         $this->assertStringNotContainsString('@import', $css);
         $this->assertStringNotContainsString('http://', $css);
         $this->assertStringNotContainsString('https://', $css);
     }
 
-    public function testHasReducedMotionBlock(): void
+    public function testProseShellMapsSafeAreasIntoEveryLogicalPaddingEdge(): void
     {
-        $css = (string) file_get_contents(self::PATH);
-        $this->assertStringContainsString('prefers-reduced-motion: reduce', $css);
-    }
+        $declarations = $this->declarationsForRule($this->themeCss(), '.prose');
 
-    public function testFormControlsProvideTheRequired44PixelPointerTarget(): void
-    {
-        $css = (string) file_get_contents(self::PATH);
+        $this->assertSame(
+            'max(var(--space-9), env(safe-area-inset-top)) max(var(--space-9), env(safe-area-inset-bottom))',
+            $declarations['padding-block'] ?? null,
+            'The deployed reading shell must avoid top and bottom display cutouts.'
+        );
+        $this->assertSame(
+            'max(16px, var(--safe-inline-start)) max(16px, var(--safe-inline-end))',
+            $declarations['padding-inline'] ?? null,
+            'The deployed reading shell must map asymmetric inline safe areas through logical edges.'
+        );
 
-        $this->assertMatchesRegularExpression(
-            '/input,\s*select,\s*textarea,\s*\.control\s*\{(?:(?!\}).)*min-block-size:\s*44px\s*;/s',
-            $css,
-            'Form controls need a 44px minimum block size so their pointer target remains usable.'
+        $tabletDeclarations = $this->declarationsForRule(
+            $this->atRuleBlock($this->themeCss(), '@media (min-width: 480px)'),
+            '.prose'
+        );
+        $this->assertSame(
+            'max(20px, var(--safe-inline-start)) max(20px, var(--safe-inline-end))',
+            $tabletDeclarations['padding-inline'] ?? null,
+            'The 480px reading shell must retain direction-aware 20px gutters.'
         );
     }
 
-    public function testProseShellUsesDirectionAwareSafeAreaGuttersAtMobileBreakpoints(): void
+    public function testFormControlsFillTheirLineAndProvideA44PixelPointerTarget(): void
     {
-        $css = (string) file_get_contents(self::PATH);
+        $declarations = $this->declarationsForRule(
+            $this->themeCss(),
+            "input,\nselect,\ntextarea,\n.control"
+        );
 
-        $this->assertMatchesRegularExpression(
-            '/\.prose\s*\{(?:(?!\}).)*padding-inline:\s*max\(16px,\s*var\(--safe-inline-start\)\)\s+max\(16px,\s*var\(--safe-inline-end\)\)\s*;/s',
-            $css,
-            'The rendered page shell must map asymmetric safe areas through logical inline gutters.'
+        $this->assertSame('100%', $declarations['inline-size'] ?? null);
+        $this->assertSame(
+            '44px',
+            $declarations['min-block-size'] ?? null,
+            'Full-width form controls need a 44px minimum block target.'
         );
-        $this->assertMatchesRegularExpression(
-            '/@media\s*\(min-width:\s*480px\)\s*\{(?:(?!@media).)*\.prose\s*\{(?:(?!\}).)*padding-inline:\s*max\(20px,\s*var\(--safe-inline-start\)\)\s+max\(20px,\s*var\(--safe-inline-end\)\)\s*;/s',
-            $css,
-            'The rendered page shell must increase its mobile gutter to 20px from 480px onward.'
+    }
+
+    public function testButtonsHaveA44By44MinimumTarget(): void
+    {
+        $declarations = $this->declarationsForRule($this->themeCss(), ".btn,\n.button");
+
+        $this->assertSame('inline-flex', $declarations['display'] ?? null);
+        $this->assertSame('44px', $declarations['min-inline-size'] ?? null);
+        $this->assertSame('44px', $declarations['min-block-size'] ?? null);
+    }
+
+    public function testRtlSwapsTheExactPhysicalSafeAreaSources(): void
+    {
+        $declarations = $this->declarationsForRule($this->themeCss(), "[dir='rtl']");
+
+        $this->assertSame('env(safe-area-inset-right)', $declarations['--safe-inline-start'] ?? null);
+        $this->assertSame('env(safe-area-inset-left)', $declarations['--safe-inline-end'] ?? null);
+    }
+
+    public function testThemeSwitcherRespectsFixedSafeAreaInsets(): void
+    {
+        $declarations = $this->declarationsForRule($this->themeCss(), '.theme-switcher');
+
+        $this->assertSame('fixed', $declarations['position'] ?? null);
+        $this->assertSame('max(var(--space-4), var(--safe-inline-end))', $declarations['inset-inline-end'] ?? null);
+        $this->assertSame('max(var(--space-4), env(safe-area-inset-bottom))', $declarations['inset-block-end'] ?? null);
+    }
+
+    public function testReducedMotionOverridesAnimationAndScrollingInItsMediaContract(): void
+    {
+        $declarations = $this->declarationsForRule(
+            $this->atRuleBlock($this->themeCss(), '@media (prefers-reduced-motion: reduce)'),
+            "*,\n*::before,\n*::after"
         );
+
+        $this->assertSame('1ms !important', $declarations['animation-duration'] ?? null);
+        $this->assertSame('1 !important', $declarations['animation-iteration-count'] ?? null);
+        $this->assertSame('auto !important', $declarations['scroll-behavior'] ?? null);
+        $this->assertSame('1ms !important', $declarations['transition-duration'] ?? null);
+    }
+
+    public function testForcedColorsUsesSystemAdjustmentAndRemovesShadowOnlyInItsMediaContract(): void
+    {
+        $media = $this->atRuleBlock($this->themeCss(), '@media (forced-colors: active)');
+        $systemDeclarations = $this->declarationsForRule($media, "*,\n*::before,\n*::after");
+        $surfaceDeclarations = $this->declarationsForRule($media, ".card,\n.btn,\n.button");
+
+        $this->assertSame('auto', $systemDeclarations['forced-color-adjust'] ?? null);
+        $this->assertSame('none', $surfaceDeclarations['box-shadow'] ?? null);
+    }
+
+    private function themeCss(): string
+    {
+        return (string) file_get_contents(self::PATH);
+    }
+
+    /** @return array<string, string> */
+    private function declarationsForRule(string $css, string $selector): array
+    {
+        $block = $this->ruleBlock($css, $selector);
+        preg_match_all('/(?<property>--[a-z0-9-]+|[a-z-]+)\s*:\s*(?<value>[^;{}]+);/i', $block, $matches, PREG_SET_ORDER);
+
+        $declarations = [];
+        foreach ($matches as $match) {
+            $declarations[$match['property']] = trim($match['value']);
+        }
+
+        return $declarations;
+    }
+
+    private function ruleBlock(string $css, string $selector): string
+    {
+        $pattern = '/' . preg_quote($this->normalizeWhitespace($selector), '/') . '\\s*\\{/';
+        $normalizedCss = $this->normalizeWhitespace($css);
+        $this->assertMatchesRegularExpression($pattern, $normalizedCss, "Missing {$selector} rule");
+        preg_match($pattern, $normalizedCss, $match, PREG_OFFSET_CAPTURE);
+
+        return $this->blockFollowingOpeningBrace($normalizedCss, $match[0][1] + strlen($match[0][0]) - 1);
+    }
+
+    private function atRuleBlock(string $css, string $atRule): string
+    {
+        $normalizedCss = $this->normalizeWhitespace($css);
+        $pattern = '/' . preg_quote($this->normalizeWhitespace($atRule), '/') . '\\s*\\{/';
+        $this->assertMatchesRegularExpression($pattern, $normalizedCss, "Missing {$atRule} block");
+        preg_match($pattern, $normalizedCss, $match, PREG_OFFSET_CAPTURE);
+
+        return $this->blockFollowingOpeningBrace($normalizedCss, $match[0][1] + strlen($match[0][0]) - 1);
+    }
+
+    private function blockFollowingOpeningBrace(string $css, int $openingBraceOffset): string
+    {
+        $depth = 0;
+        $length = strlen($css);
+        for ($offset = $openingBraceOffset; $offset < $length; $offset++) {
+            if ($css[$offset] === '{') {
+                $depth++;
+            } elseif ($css[$offset] === '}' && --$depth === 0) {
+                return substr($css, $openingBraceOffset + 1, $offset - $openingBraceOffset - 1);
+            }
+        }
+
+        $this->fail('Unclosed CSS block');
+    }
+
+    private function normalizeWhitespace(string $value): string
+    {
+        return trim((string) preg_replace('/\\s+/', ' ', $value));
     }
 
     /** @return array<string, string> */

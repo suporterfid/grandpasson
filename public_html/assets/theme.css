@@ -221,7 +221,7 @@ small,
 .prose {
   max-inline-size: 720px;
   margin-inline: auto;
-  padding-block: var(--space-9);
+  padding-block: max(var(--space-9), env(safe-area-inset-top)) max(var(--space-9), env(safe-area-inset-bottom));
   padding-inline: max(16px, var(--safe-inline-start)) max(16px, var(--safe-inline-end));
 }
 
@@ -406,8 +406,8 @@ textarea:focus-visible {
 .theme-switcher {
   position: fixed;
   z-index: 10;
-  inset-inline-end: var(--space-4);
-  inset-block-end: var(--space-4);
+  inset-inline-end: max(var(--space-4), var(--safe-inline-end));
+  inset-block-end: max(var(--space-4), env(safe-area-inset-bottom));
   max-inline-size: calc(100% - var(--space-7));
   padding: var(--space-1);
   border: 1px solid var(--color-border-strong);

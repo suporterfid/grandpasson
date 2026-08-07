@@ -77,7 +77,53 @@ GrandpaSSOn component names remain aliases, not an alternate palette:
 | `--color-action` | `--color-action-primary` |
 | `--color-action-hover` | `--color-action-primary-hover` |
 | `--color-focus` | `--color-focus-ring` |
-| `--color-danger`, `--color-warning`, `--color-success` | Corresponding `*-fg` token |
+| `--color-danger` | `--color-danger-fg` |
+| `--color-warning` | `--color-warning-fg` |
+| `--color-success` | `--color-success-fg` |
+| `--font-sans` | `--font-ui` |
+| `--font-mono` | `--font-code` |
+
+### Measured contrast
+
+Ratios below were calculated with the WCAG relative-luminance formula from
+the exact token values above. Text and status pairs require at least 4.5:1;
+focus rings and strong boundaries are non-text indicators requiring at least
+3:1. “Pass” means the stated pair meets its applicable threshold.
+
+| Theme | Pair | Ratio | Threshold | Result |
+|---|---|---:|---:|---|
+| Light | Primary text / canvas | 15.33:1 | 4.5:1 | Pass |
+| Light | Secondary text / canvas | 6.39:1 | 4.5:1 | Pass |
+| Light | Primary text / surface | 14.18:1 | 4.5:1 | Pass |
+| Light | Secondary text / surface | 5.91:1 | 4.5:1 | Pass |
+| Light | Primary text / elevated | 15.33:1 | 4.5:1 | Pass |
+| Light | Secondary text / elevated | 6.39:1 | 4.5:1 | Pass |
+| Light | Link / canvas | 6.54:1 | 4.5:1 | Pass |
+| Light | Primary-action content / default | 5.25:1 | 4.5:1 | Pass |
+| Light | Primary-action content / hover | 7.11:1 | 4.5:1 | Pass |
+| Light | Primary-action content / active | 8.85:1 | 4.5:1 | Pass |
+| Light | Success foreground / background | 6.18:1 | 4.5:1 | Pass |
+| Light | Warning foreground / background | 7.02:1 | 4.5:1 | Pass |
+| Light | Danger foreground / background | 5.98:1 | 4.5:1 | Pass |
+| Light | Info foreground / background | 5.95:1 | 4.5:1 | Pass |
+| Light | Focus ring / canvas | 5.25:1 | 3:1 | Pass |
+| Light | Strong boundary / canvas | 3.54:1 | 3:1 | Pass |
+| Dark | Primary text / canvas | 15.55:1 | 4.5:1 | Pass |
+| Dark | Secondary text / canvas | 10.26:1 | 4.5:1 | Pass |
+| Dark | Primary text / surface | 14.41:1 | 4.5:1 | Pass |
+| Dark | Secondary text / surface | 9.51:1 | 4.5:1 | Pass |
+| Dark | Primary text / elevated | 13.55:1 | 4.5:1 | Pass |
+| Dark | Secondary text / elevated | 8.95:1 | 4.5:1 | Pass |
+| Dark | Link / canvas | 8.23:1 | 4.5:1 | Pass |
+| Dark | Primary-action content / default | 6.26:1 | 4.5:1 | Pass |
+| Dark | Primary-action content / hover | 8.34:1 | 4.5:1 | Pass |
+| Dark | Primary-action content / active | 4.60:1 | 4.5:1 | Pass |
+| Dark | Success foreground / background | 9.07:1 | 4.5:1 | Pass |
+| Dark | Warning foreground / background | 9.43:1 | 4.5:1 | Pass |
+| Dark | Danger foreground / background | 7.94:1 | 4.5:1 | Pass |
+| Dark | Info foreground / background | 8.50:1 | 4.5:1 | Pass |
+| Dark | Focus ring / canvas | 8.23:1 | 3:1 | Pass |
+| Dark | Strong boundary / canvas | 3.45:1 | 3:1 | Pass |
 
 ### Theme preference precedence
 
@@ -114,11 +160,82 @@ weight range `100 900`, and a relative same-origin URL. It is not CDN-loaded.
 
 The semantic fallback stacks are `--font-ui`, `--font-editorial`, and
 `--font-code`; `--font-sans` and `--font-mono` alias the UI and code stacks
-for existing markup. The active type scale is caption `12/16`, UI `14/20`,
-body `16/24`, section `20/28`, subheading `24/32`, title `32/40`, and display
-`44/52` (pixels). The approved weights are 400, 500, 600, and 700; font
-synthesis is disabled. Code disables ligatures, while ordinary prose keeps
-normal shaping and ligatures.
+for existing markup. The exact active stacks and scale are:
+
+| Token | Active value |
+|---|---|
+| `--font-ui` | `Inter, "Noto Sans", "Noto Sans Arabic", "Noto Sans Hebrew", "Noto Sans SC", "Noto Sans TC", "Noto Sans JP", "Noto Sans KR", "Noto Sans Thai", "Noto Sans Devanagari", Arial, sans-serif` |
+| `--font-editorial` | `"Source Serif 4", "Noto Serif", "Noto Naskh Arabic", "Noto Serif Hebrew", "Noto Serif SC", "Noto Serif TC", "Noto Serif JP", "Noto Serif KR", Georgia, serif` |
+| `--font-code` | `"IBM Plex Mono", "Noto Sans Mono", "Noto Sans SC", "Noto Sans TC", "Noto Sans JP", "Noto Sans KR", monospace` |
+
+| Role | Token | Size / line-height | Weight |
+|---|---|---:|---:|
+| Caption / metadata | `--text-caption` | `12px / 16px` | 400–500 |
+| Compact UI | `--text-ui` | `14px / 20px` | 400–600 |
+| Body | `--text-body` | `16px / 24px` | 400 |
+| Section title | `--text-section` | `20px / 28px` | 600 |
+| Page subheading | `--text-subheading` | `24px / 32px` | 600 |
+| Page title | `--text-title` | `32px / 40px` | 700 |
+| Display title | `--text-display` | `44px / 52px` | 700 |
+
+The approved weights are 400, 500, 600, and 700; font synthesis is disabled.
+Code disables ligatures, while ordinary prose keeps normal shaping and
+ligatures.
+
+## Spatial, elevation, and motion contract
+
+| Spacing token | Value | Spacing token | Value |
+|---|---:|---|---:|
+| `--space-0` | `0` | `--space-1` | `4px` |
+| `--space-2` | `8px` | `--space-3` | `12px` |
+| `--space-4` | `16px` | `--space-5` | `20px` |
+| `--space-6` | `24px` | `--space-7` | `32px` |
+| `--space-8` | `40px` | `--space-9` | `48px` |
+| `--space-10` | `64px` | | |
+
+| Shape or boundary | Exact active value |
+|---|---:|
+| Inline radius (`--radius-inline`) | `2px` |
+| Control radius (`--radius-sm`) | `4px` |
+| Card radius (`--radius-md`) | `6px` |
+| Dialog radius (`--radius-lg`) | `8px` |
+| Pill radius (`--radius-pill`) | `999px` |
+| Default border | `1px` |
+| Focus and invalid emphasis | `2px` |
+| Focus offset | `2px` |
+
+| Elevation token | Exact shadow |
+|---|---|
+| `--shadow-0` | `none` |
+| `--shadow-1` | `0 1px 2px rgb(0 0 0 / 0.08)` |
+| `--shadow-2` | `0 4px 12px rgb(0 0 0 / 0.14)` |
+| `--shadow-3` | `0 12px 28px rgb(0 0 0 / 0.18)` |
+
+| Layer | Active z-index | Deployed use |
+|---|---:|---|
+| Normal document flow | `auto` | Page content and cards |
+| Fixed theme switcher | `10` | `.theme-switcher` |
+| Other overlay layers | Not currently declared | Future menus, dialogs, toasts, and sidebars must reserve canonical layers without reusing `10` |
+
+| Icon role | Required size |
+|---|---:|
+| Inline icon | `16px` |
+| Control icon | `20px` |
+| Standalone icon | `24px` |
+
+Current GrandpaSSOn pages do not ship a general icon component; future SVG
+icons use `currentColor`, no fill unless meaningful, and a 1.5 or 2 stroke.
+
+| Motion token or rule | Exact active value |
+|---|---|
+| `--duration-feedback` | `120ms` |
+| `--duration-control` | `180ms` |
+| `--ease-standard` | `cubic-bezier(0.2, 0, 0, 1)` |
+| Reduced motion | Animation/transition duration `1ms !important`; one iteration; `scroll-behavior: auto !important` |
+
+No entry/exit or layout-expansion animation is currently deployed. If one is
+introduced, it must use the approved 240ms entry/exit duration and must remain
+non-essential under reduced motion.
 
 Legacy Open Sans files remain in the font directory as unreferenced package
 artifacts; they are not declared by `theme.css` and are not part of the
@@ -151,9 +268,19 @@ Thai, or Devanagari value. Use the supplied Noto fallbacks (and nearest
 `lang`) for scripts that need them; do not add Arabic letter spacing or
 per-character wrappers.
 
+| Viewport | Active measure and behavior |
+|---|---|
+| `<480px` | `.prose` has `720px` max inline size, `max(16px, safe-inline-start/end)` gutters, and `max(48px, top/bottom safe area)` block padding. The fixed switcher anchors 16px-or-safe-area from inline end and block end. |
+| `480–767px` | `.prose` increases only its logical inline gutters to `max(20px, safe-inline-start/end)`; its block safe-area padding remains in force. |
+| `768–1023px` | `.data-table-region` may own horizontal scrolling; it must be labeled, keyboard-operable, and visibly scrollable. |
+| `1024–1279px` | The forward-compatible `.app-shell` uses `max(24px, safe-inline-start/end)` inline padding. GrandpaSSOn currently has no persistent sidebar or top bar. |
+| `≥1280px` | `.data-view` may reach `1200px` max inline size; reading content remains `720px`. |
+
 The current page wrapper is `.prose`: it has a 720px reading measure,
-16px-plus-safe-area mobile gutters, and 20px-plus-safe-area gutters from
-480px. It uses block/inline padding so direction is structural, not visual.
+16px-plus-safe-area mobile gutters, 20px-plus-safe-area gutters from 480px,
+and 48px-plus-safe-area top and bottom padding. It uses block/inline padding
+so direction is structural, not visual. The fixed theme switcher uses the
+same logical inline-end variable and the bottom safe area.
 `.data-view` permits a 1200px measure at 1280px; `.data-table-region` may
 scroll horizontally from 768px only when it is a labeled, keyboard-operable
 data region with a visible affordance. `pre` is the equivalent code region.
@@ -218,8 +345,10 @@ php vendor\bin\phpunit tests\Unit\ThemeCssTest.php
 php vendor\bin\phpunit
 ```
 
-Before release, manually verify light/dark/system changes (including OS theme
-changes), keyboard focus, forced colours, reduced motion, 320px/400% reflow,
-200% text and browser zoom, long `en-XA` strings, RTL `ar-XB`, mixed-direction
-IDs/emails, and CJK/Arabic/Thai/Devanagari input composition. Check both
-web-root and configured base-path asset delivery.
+Task 4 owns browser-level QA. Before release it must verify light/dark/system
+changes (including OS theme changes), keyboard focus, forced colours, reduced
+motion, 320px/400% reflow, 200% text and browser zoom, long `en-XA` strings,
+RTL `ar-XB`, mixed-direction IDs/emails, and CJK/Arabic/Thai/Devanagari input
+composition. The PHP unit suite verifies rule contracts only; it does not
+compute layout, media-query behavior, or browser-resolved safe areas. Check
+both web-root and configured base-path asset delivery.
